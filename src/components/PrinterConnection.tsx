@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Bluetooth, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { setConnectedDevice } from "@/lib/bluetoothPrinter";
 
 interface PrinterConnectionProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export const PrinterConnection = ({
       });
 
       if (device) {
+        setConnectedDevice(device);
         setConnectionStatus("success");
         toast.success(`Connected to ${device.name || "Bluetooth Printer"}`);
         onConnected();

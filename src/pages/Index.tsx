@@ -4,6 +4,7 @@ import { FileUploader } from "@/components/FileUploader";
 import { ImageGrid } from "@/components/ImageGrid";
 import { PrinterConnection } from "@/components/PrinterConnection";
 import { ConvertedImage, convertPdfToJpg } from "@/lib/pdfConverter";
+import { printImages, getConnectedDevice } from "@/lib/bluetoothPrinter";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Loader2, Zap, Image as ImageIcon, Printer } from "lucide-react";
@@ -45,17 +46,25 @@ const Index = () => {
     }
   };
 
-  const handlePrint = (imagesToPrint: ConvertedImage[]) => {
-    if (!isPrinterConnected) {
+  const handlePrint = async (imagesToPrint: ConvertedImage[]) => {
+    if (!isPrinterConnected || !getConnectedDevice()) {
       toast.error("Please connect a printer first");
       setShowPrinterDialog(true);
       return;
     }
 
-    // Placeholder for actual print functionality
-    toast.info(
-      `Printing ${imagesToPrint.length} receipt(s)... (Demo mode - full Bluetooth implementation in progress)`
-    );
+    try {
+      const printToast = toast.loading(`Printing ${imagesToPrint.length} receipt(s)...`);
+      
+      await printImages(imagesToPrint, (current, total) => {
+        toast.loading(`Printing ${current}/${total} receipt(s)...`, { id: printToast });
+      });
+
+      toast.success(`Successfully printed ${imagesToPrint.length} receipt(s)!`, { id: printToast });
+    } catch (error) {
+      console.error("Print error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to print receipts");
+    }
   };
 
   return (

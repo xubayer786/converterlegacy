@@ -56,11 +56,12 @@ export const ImagePreviewModal = ({
             </Button>
           )}
 
-          <div className="max-h-full max-w-full p-8 overflow-auto">
+          <div className="w-full h-full flex items-center justify-center p-4">
             <img
               src={image.dataUrl}
               alt={image.filename}
-              className="max-h-full max-w-full object-contain"
+              className="w-full h-full object-contain"
+              style={{ maxHeight: "calc(90vh - 180px)" }}
             />
           </div>
 

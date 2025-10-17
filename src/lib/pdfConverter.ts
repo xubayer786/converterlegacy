@@ -123,10 +123,10 @@ export const convertPdfToJpg = async (
     const numPages = pdf.numPages;
     const images: ConvertedImage[] = [];
 
-  // Convert mm to pixels (assuming 96 DPI for screen, 4x for quality)
-  const DPI = 96;
+  // Convert mm to pixels with high DPI for maximum quality
+  const DPI = 300; // High DPI for print quality
   const MM_TO_INCH = 0.0393701;
-  const SCALE_FACTOR = 4; // Render at 4x for quality
+  const SCALE_FACTOR = 6; // Render at 6x for superior quality
   const targetWidthPx = targetWidthMm * MM_TO_INCH * DPI * SCALE_FACTOR;
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
@@ -197,7 +197,7 @@ export const convertPdfToJpg = async (
       finalCanvas.height
     );
 
-    const dataUrl = finalCanvas.toDataURL("image/jpeg", 0.95);
+    const dataUrl = finalCanvas.toDataURL("image/jpeg", 0.98);
     const baseName = file.name.replace(/\.pdf$/i, "");
     const filename =
       numPages > 1 ? `${baseName}_page${pageNum}.jpg` : `${baseName}.jpg`;
