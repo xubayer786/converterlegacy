@@ -1,7 +1,10 @@
 import * as pdfjsLib from "pdfjs-dist";
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure PDF.js worker - use local worker for reliability
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 export interface ConvertedImage {
   id: string;
@@ -113,10 +116,12 @@ export const convertPdfToJpg = async (
   targetWidthMm: number = 58,
   onProgress?: (progress: number) => void
 ): Promise<ConvertedImage[]> => {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const numPages = pdf.numPages;
-  const images: ConvertedImage[] = [];
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    const numPages = pdf.numPages;
+    const images: ConvertedImage[] = [];
 
   // Convert mm to pixels (assuming 96 DPI for screen, 4x for quality)
   const DPI = 96;
@@ -142,11 +147,10 @@ export const convertPdfToJpg = async (
     context.fillStyle = "#FFFFFF";
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    const renderContext = {
+    await page.render({
       canvasContext: context,
       viewport: scaledViewport,
-    };
-    await page.render(renderContext as any).promise;
+    } as any).promise;
 
     // Detect and crop borders
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -213,4 +217,8 @@ export const convertPdfToJpg = async (
   }
 
   return images;
+  } catch (error) {
+    console.error("PDF conversion error:", error);
+    throw new Error(`Failed to convert PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 };
