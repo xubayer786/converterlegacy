@@ -19,6 +19,7 @@ const commands = {
   CUT_PAPER: [GS, 0x56, 0x00],
   PRINT_MODE_EMPHASIZED: [ESC, 0x45, 0x01], // Bold on
   PRINT_MODE_NORMAL: [ESC, 0x45, 0x00], // Bold off
+  SET_LINE_SPACING: [ESC, 0x33, 0x00], // Set line spacing to 0
 };
 
 export const setConnectedDevice = (device: BluetoothDevice | null) => {
@@ -46,7 +47,7 @@ const connectToPrinter = async (): Promise<boolean> => {
     console.log(`Found ${services.length} services`);
 
     if (services.length === 0) {
-      throw new Error("No services found in device");
+      throw new Error("No services found in device. Make sure it's a Bluetooth printer.");
     }
 
     // Try common printer service UUIDs first
@@ -123,7 +124,7 @@ const connectToPrinter = async (): Promise<boolean> => {
   }
 };
 
-const sendCommand = async (command: number[]) => {
+const sendCommand = async (command: number[], description?: string) => {
   if (!printerCharacteristic) {
     await connectToPrinter();
   }
@@ -132,98 +133,96 @@ const sendCommand = async (command: number[]) => {
     throw new Error("Printer not connected");
   }
 
-  const data = new Uint8Array(command);
-  await printerCharacteristic.writeValue(data);
+  try {
+    const data = new Uint8Array(command);
+    if (printerCharacteristic.properties.writeWithoutResponse) {
+      await printerCharacteristic.writeValueWithoutResponse(data);
+    } else {
+      await printerCharacteristic.writeValue(data);
+    }
+    if (description) {
+      console.log(`Sent command: ${description}`);
+    }
+  } catch (error) {
+    console.error(`Failed to send command ${description}:`, error);
+    throw error;
+  }
 };
 
-const imageToEscPos = async (dataUrl: string, maxWidth: number = 384): Promise<Uint8Array[]> => {
+// Convert image to ESC/POS bitmap format (more reliable than raster)
+const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Promise<number[][]> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d")!;
+      try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { 
+          alpha: false,
+          willReadFrequently: true 
+        })!;
 
-      // Calculate dimensions maintaining aspect ratio
-      let width = img.width;
-      let height = img.height;
+        // Calculate dimensions maintaining aspect ratio
+        let width = img.width;
+        let height = img.height;
 
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
-      }
+        if (width > maxWidth) {
+          height = Math.floor((height * maxWidth) / width);
+          width = maxWidth;
+        }
 
-      // Ensure width is divisible by 8 for ESC/POS
-      width = Math.floor(width / 8) * 8;
+        // Ensure width is divisible by 8 for ESC/POS
+        width = Math.floor(width / 8) * 8;
+        if (width === 0) width = 8;
 
-      canvas.width = width;
-      canvas.height = height;
+        canvas.width = width;
+        canvas.height = height;
 
-      // Draw image with high quality
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(img, 0, 0, width, height);
+        // Fill white background
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, width, height);
 
-      const imageData = ctx.getImageData(0, 0, width, height);
-      const chunks: Uint8Array[] = [];
+        // Draw image with high quality
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, width, height);
 
-      // Convert to 1-bit monochrome using Floyd-Steinberg dithering
-      const pixels = imageData.data;
-      const width8 = Math.floor(width / 8);
+        // Get image data
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const pixels = imageData.data;
 
-      for (let y = 0; y < height; y++) {
-        const line: number[] = [ESC, 0x2a, 33, width8 & 0xff, (width8 >> 8) & 0xff];
+        console.log(`Processing image: ${width}x${height}px`);
 
-        for (let x = 0; x < width; x += 8) {
-          let byte = 0;
-          for (let bit = 0; bit < 8; bit++) {
-            const px = x + bit;
-            if (px < width) {
-              const idx = (y * width + px) * 4;
-              const gray = pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114;
+        // Convert to monochrome bitmap with dithering
+        const bitmap: number[][] = [];
+        const widthBytes = width / 8;
 
-              // Apply Floyd-Steinberg dithering
-              const oldPixel = gray;
-              const newPixel = oldPixel < 128 ? 0 : 255;
-              const error = oldPixel - newPixel;
-
-              if (newPixel === 0) {
-                byte |= 1 << (7 - bit);
-              }
-
-              // Distribute error to neighboring pixels
-              if (px + 1 < width) {
-                const idx1 = (y * width + px + 1) * 4;
-                pixels[idx1] += error * 7 / 16;
-                pixels[idx1 + 1] += error * 7 / 16;
-                pixels[idx1 + 2] += error * 7 / 16;
-              }
-              if (y + 1 < height && px > 0) {
-                const idx2 = ((y + 1) * width + px - 1) * 4;
-                pixels[idx2] += error * 3 / 16;
-                pixels[idx2 + 1] += error * 3 / 16;
-                pixels[idx2 + 2] += error * 3 / 16;
-              }
-              if (y + 1 < height) {
-                const idx3 = ((y + 1) * width + px) * 4;
-                pixels[idx3] += error * 5 / 16;
-                pixels[idx3 + 1] += error * 5 / 16;
-                pixels[idx3 + 2] += error * 5 / 16;
-              }
-              if (y + 1 < height && px + 1 < width) {
-                const idx4 = ((y + 1) * width + px + 1) * 4;
-                pixels[idx4] += error * 1 / 16;
-                pixels[idx4 + 1] += error * 1 / 16;
-                pixels[idx4 + 2] += error * 1 / 16;
+        for (let y = 0; y < height; y++) {
+          const row: number[] = [];
+          for (let x = 0; x < width; x += 8) {
+            let byte = 0;
+            for (let bit = 0; bit < 8; bit++) {
+              const px = x + bit;
+              if (px < width) {
+                const idx = (y * width + px) * 4;
+                const gray = pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114;
+                
+                // Threshold with slight adjustment for better contrast
+                if (gray < 140) {
+                  byte |= 1 << (7 - bit);
+                }
               }
             }
+            row.push(byte);
           }
-          line.push(byte);
+          bitmap.push(row);
         }
-        line.push(0x0a); // Line feed
-        chunks.push(new Uint8Array(line));
-      }
 
-      resolve(chunks);
+        console.log(`Bitmap generated: ${bitmap.length} lines, ${widthBytes} bytes per line`);
+        resolve(bitmap);
+      } catch (error) {
+        console.error("Image processing error:", error);
+        reject(error);
+      }
     };
 
     img.onerror = () => reject(new Error("Failed to load image"));
@@ -241,30 +240,67 @@ export const printImages = async (
 
   try {
     await connectToPrinter();
+    console.log("Printer connected, starting print job...");
 
     for (let i = 0; i < images.length; i++) {
       const image = images[i];
+      console.log(`Printing image ${i + 1}/${images.length}: ${image.filename}`);
 
       // Initialize printer
-      await sendCommand(commands.INIT);
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await sendCommand(commands.INIT, "Initialize");
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
-      // Set print density/darkness
-      await sendCommand([GS, 0x7c, 0x00]); // Set print density
+      // Set print density to maximum
+      await sendCommand([GS, 0x7c, 0x00, 0x32, 0x32], "Set density");
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Convert image to ESC/POS
-      const imageChunks = await imageToEscPos(image.dataUrl, 576); // 576px = 58mm at 200dpi
+      // Set line spacing to 0 for bitmap printing
+      await sendCommand([ESC, 0x33, 0x00], "Set line spacing");
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Send image data in chunks
-      for (const chunk of imageChunks) {
-        await printerCharacteristic?.writeValue(chunk);
-        // Small delay between chunks for stability
-        await new Promise((resolve) => setTimeout(resolve, 10));
+      // Convert image to bitmap
+      console.log("Converting image to bitmap...");
+      const bitmap = await imageToEscPosBitmap(image.dataUrl, 576); // 576px = 72mm at 203dpi
+      const widthBytes = bitmap[0].length;
+      const height = bitmap.length;
+
+      console.log(`Sending bitmap: ${widthBytes} bytes wide, ${height} lines tall`);
+
+      // Send bitmap data using ESC * command (more compatible)
+      let linesSent = 0;
+      for (let y = 0; y < height; y++) {
+        const line = bitmap[y];
+        
+        // ESC * m nL nH d1...dk - Print raster bit image
+        // m = 33 (24-dot double-density)
+        const cmd = [
+          ESC, 0x2a, 33, 
+          widthBytes & 0xff, 
+          (widthBytes >> 8) & 0xff,
+          ...line,
+          0x0a // Line feed after each line
+        ];
+
+        await sendCommand(cmd);
+        
+        // Progress feedback every 10 lines
+        if (y % 10 === 0) {
+          linesSent = y;
+          console.log(`Sent ${linesSent}/${height} lines`);
+        }
+        
+        // Small delay for stability (adjust based on printer)
+        await new Promise((resolve) => setTimeout(resolve, 5));
       }
 
-      // Feed some paper and cut
-      await sendCommand([...commands.LINE_FEED, ...commands.LINE_FEED, ...commands.LINE_FEED]);
-      await sendCommand(commands.CUT_PAPER);
+      console.log(`Image sent successfully (${height} lines)`);
+
+      // Feed paper and cut
+      await sendCommand([0x0a, 0x0a, 0x0a, 0x0a], "Feed paper");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      
+      await sendCommand([GS, 0x56, 0x00], "Cut paper");
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       if (onProgress) {
         onProgress(i + 1, images.length);
@@ -272,9 +308,11 @@ export const printImages = async (
 
       // Delay between prints
       if (i < images.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
+
+    console.log("Print job completed successfully!");
   } catch (error) {
     console.error("Print error:", error);
     throw new Error(`Failed to print: ${error instanceof Error ? error.message : "Unknown error"}`);
