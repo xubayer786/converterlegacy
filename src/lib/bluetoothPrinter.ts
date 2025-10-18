@@ -41,54 +41,79 @@ const connectToPrinter = async (): Promise<boolean> => {
     const server = await connectedDevice.gatt?.connect();
     if (!server) throw new Error("Failed to connect to GATT server");
 
-    // Try common printer service UUIDs
-    const serviceUUIDs = [
-      "000018f0-0000-1000-8000-00805f9b34fb", // Common thermal printer service
-      "49535343-fe7d-4ae5-8fa9-9fafd205e455", // Another common service
+    // Get all available services
+    const services = await server.getPrimaryServices();
+    console.log(`Found ${services.length} services`);
+
+    if (services.length === 0) {
+      throw new Error("No services found in device");
+    }
+
+    // Try common printer service UUIDs first
+    const commonServiceUUIDs = [
+      "000018f0-0000-1000-8000-00805f9b34fb",
+      "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+      "0000fff0-0000-1000-8000-00805f9b34fb",
+      "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
     ];
 
     let service = null;
-    for (const uuid of serviceUUIDs) {
+    for (const uuid of commonServiceUUIDs) {
       try {
         service = await server.getPrimaryService(uuid);
-        if (service) break;
+        if (service) {
+          console.log(`Connected using service: ${uuid}`);
+          break;
+        }
       } catch (e) {
         continue;
       }
     }
 
-    // If specific services fail, try to get any available service
-    if (!service) {
-      const services = await server.getPrimaryServices();
+    // If no common service found, try first available service
+    if (!service && services.length > 0) {
       service = services[0];
+      console.log(`Using first available service: ${service.uuid}`);
     }
 
-    if (!service) throw new Error("No printer service found");
+    if (!service) throw new Error("No compatible printer service found");
 
-    // Try to get write characteristic
-    const characteristicUUIDs = [
+    // Get all characteristics
+    const characteristics = await service.getCharacteristics();
+    console.log(`Found ${characteristics.length} characteristics`);
+
+    // Try common characteristic UUIDs
+    const commonCharUUIDs = [
       "00002af1-0000-1000-8000-00805f9b34fb",
       "49535343-8841-43f4-a8d4-ecbe34729bb3",
+      "0000fff1-0000-1000-8000-00805f9b34fb",
+      "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f",
     ];
 
-    for (const uuid of characteristicUUIDs) {
+    for (const uuid of commonCharUUIDs) {
       try {
         printerCharacteristic = await service.getCharacteristic(uuid);
-        if (printerCharacteristic) break;
+        if (printerCharacteristic) {
+          console.log(`Using characteristic: ${uuid}`);
+          break;
+        }
       } catch (e) {
         continue;
       }
     }
 
+    // If no common characteristic, find any writable one
     if (!printerCharacteristic) {
-      const characteristics = await service.getCharacteristics();
-      printerCharacteristic =
-        characteristics.find((c) => c.properties.write || c.properties.writeWithoutResponse) ||
-        characteristics[0];
+      printerCharacteristic = characteristics.find(
+        (c) => c.properties.write || c.properties.writeWithoutResponse
+      );
+      if (printerCharacteristic) {
+        console.log(`Using writable characteristic: ${printerCharacteristic.uuid}`);
+      }
     }
 
     if (!printerCharacteristic) {
-      throw new Error("No writable characteristic found");
+      throw new Error("No writable characteristic found. Device may not be a printer.");
     }
 
     return true;

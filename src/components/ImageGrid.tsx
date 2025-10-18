@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Printer, Check } from "lucide-react";
+import { Download, Printer, Check, MessageCircle, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConvertedImage } from "@/lib/pdfConverter";
 import { ImagePreviewModal } from "./ImagePreviewModal";
@@ -109,94 +109,158 @@ export const ImageGrid = ({ images, onPrint }: ImageGridProps) => {
     setPreviewImage(images[newIndex]);
   };
 
+  const sendToWhatsApp = async (imagesToSend: ConvertedImage[]) => {
+    try {
+      const message = `Receipts from Legacy Converter (${imagesToSend.length} files)`;
+      
+      // For mobile: use native share
+      if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        const files = await Promise.all(
+          imagesToSend.map(async (img) => {
+            const blob = await (await fetch(img.dataUrl)).blob();
+            return new File([blob], img.filename, { type: "image/jpeg" });
+          })
+        );
+        
+        await navigator.share({
+          files,
+          title: "Legacy Converter Receipts",
+          text: message,
+        });
+        toast.success("Shared to WhatsApp!");
+      } else {
+        // For desktop: open WhatsApp Web
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, "_blank");
+        toast.info("Please attach the receipts manually in WhatsApp Web");
+      }
+    } catch (error) {
+      console.error("WhatsApp share error:", error);
+      toast.error("Failed to share via WhatsApp");
+    }
+  };
+
   if (images.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="space-y-6">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={selectAll}>
-            Select All
-          </Button>
-          <Button variant="outline" size="sm" onClick={unselectAll}>
-            Unselect All
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            {selectedImages.size} of {images.length} selected
+          <Checkbox
+            checked={selectedImages.size === images.length && images.length > 0}
+            onCheckedChange={(checked) =>
+              checked ? selectAll() : unselectAll()
+            }
+          />
+          <span className="text-sm font-medium">
+            {selectedImages.size > 0
+              ? `${selectedImages.size} selected`
+              : "Select all"}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {selectedImages.size > 0 && (
-            <>
-              <Button variant="outline" size="sm" onClick={downloadSelected}>
-                <Download className="h-4 w-4 mr-2" />
-                Download Selected
-              </Button>
-              <Button variant="outline" size="sm" onClick={printSelected}>
-                <Printer className="h-4 w-4 mr-2" />
-                Print Selected
-              </Button>
-            </>
-          )}
-          <Button variant="default" size="sm" onClick={downloadAll}>
-            <Download className="h-4 w-4 mr-2" />
-            Download All
-          </Button>
-        </div>
+        {selectedImages.size > 0 && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={downloadSelected}>
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => sendToWhatsApp(images.filter(img => selectedImages.has(img.id)))}>
+              <MessageCircle className="h-4 w-4 mr-2" />
+              WhatsApp
+            </Button>
+            <Button variant="default" size="sm" onClick={printSelected}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+          </div>
+        )}
+
+        {selectedImages.size === 0 && images.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={downloadAll}>
+              <Download className="h-4 w-4 mr-2" />
+              Download All
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => sendToWhatsApp(images)}>
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Send All to WhatsApp
+            </Button>
+            <Button variant="default" size="sm" onClick={() => onPrint(images)}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print All
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {/* Image Grid - Fixed smaller thumbnails */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
         {images.map((image) => (
           <div
             key={image.id}
-            className="group relative rounded-lg overflow-hidden border border-border bg-card hover:shadow-lg transition-all duration-300"
+            className={`group relative bg-card border-2 rounded-lg overflow-hidden transition-all hover:shadow-lg ${
+              selectedImages.has(image.id)
+                ? "border-primary ring-2 ring-primary/20"
+                : "border-border"
+            }`}
           >
-            <div className="absolute top-2 left-2 z-10">
+            <div className="absolute top-1.5 left-1.5 z-10">
               <Checkbox
                 checked={selectedImages.has(image.id)}
                 onCheckedChange={() => toggleSelection(image.id)}
-                className="bg-background border-2"
+                className="bg-background/80 backdrop-blur-sm h-4 w-4"
               />
             </div>
 
-            {selectedImages.has(image.id) && (
-              <div className="absolute top-2 right-2 z-10 bg-primary text-primary-foreground rounded-full p-1">
-                <Check className="h-4 w-4" />
-              </div>
-            )}
-
             <div
-              className="cursor-pointer"
+              className="aspect-[3/4] w-full h-32 cursor-pointer"
               onClick={() => openPreview(image)}
             >
               <img
                 src={image.dataUrl}
                 alt={image.filename}
-                className="w-full h-auto object-contain bg-muted"
+                className="w-full h-full object-cover"
               />
             </div>
 
-            <div className="p-3 space-y-2">
-              <p className="text-sm font-medium truncate">{image.filename}</p>
-              <div className="flex items-center gap-2">
+            <div className="p-2 space-y-1.5">
+              <p className="text-[10px] font-medium truncate" title={image.filename}>
+                {image.filename}
+              </p>
+              <div className="flex items-center gap-0.5 justify-center">
                 <Button
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => downloadImage(image)}
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => openPreview(image)}
                 >
-                  <Download className="h-3 w-3 mr-1" />
-                  Download
+                  <Eye className="h-3 w-3" />
                 </Button>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => downloadImage(image)}
+                >
+                  <Download className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => sendToWhatsApp([image])}
+                >
+                  <MessageCircle className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
                   onClick={() => onPrint([image])}
                 >
-                  <Printer className="h-3 w-3 mr-1" />
-                  Print
+                  <Printer className="h-3 w-3" />
                 </Button>
               </div>
             </div>
@@ -212,6 +276,7 @@ export const ImageGrid = ({ images, onPrint }: ImageGridProps) => {
           onNavigate={navigatePreview}
           onDownload={() => downloadImage(previewImage)}
           onPrint={() => onPrint([previewImage])}
+          onWhatsApp={() => sendToWhatsApp([previewImage])}
           hasNext={previewIndex < images.length - 1}
           hasPrev={previewIndex > 0}
         />

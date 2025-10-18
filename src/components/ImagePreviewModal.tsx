@@ -1,6 +1,6 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Printer, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Download, Printer, ChevronLeft, ChevronRight, X, MessageCircle } from "lucide-react";
 import { ConvertedImage } from "@/lib/pdfConverter";
 
 interface ImagePreviewModalProps {
@@ -10,6 +10,7 @@ interface ImagePreviewModalProps {
   onNavigate: (direction: "prev" | "next") => void;
   onDownload: () => void;
   onPrint: () => void;
+  onWhatsApp: () => void;
   hasNext: boolean;
   hasPrev: boolean;
 }
@@ -21,6 +22,7 @@ export const ImagePreviewModal = ({
   onNavigate,
   onDownload,
   onPrint,
+  onWhatsApp,
   hasNext,
   hasPrev,
 }: ImagePreviewModalProps) => {
@@ -33,6 +35,10 @@ export const ImagePreviewModal = ({
             <Button variant="outline" size="sm" onClick={onDownload}>
               <Download className="h-4 w-4 mr-2" />
               Download
+            </Button>
+            <Button variant="outline" size="sm" onClick={onWhatsApp}>
+              <MessageCircle className="h-4 w-4 mr-2" />
+              WhatsApp
             </Button>
             <Button variant="default" size="sm" onClick={onPrint}>
               <Printer className="h-4 w-4 mr-2" />

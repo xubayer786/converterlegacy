@@ -13,7 +13,22 @@ export interface ConvertedImage {
   pageNumber: number;
   width: number;
   height: number;
+  customerName?: string;
 }
+
+const extractCustomerName = (text: string): string => {
+  // Remove common invoice terms
+  const cleanText = text
+    .replace(/invoice|receipt|bill|order|date|total|amount|qty|price|description|legacy|dhaka/gi, "")
+    .trim();
+  
+  // Get first meaningful line (usually customer name)
+  const lines = cleanText.split(/[\n\r]+/).filter(line => line.trim().length > 3);
+  const name = lines[0]?.trim().slice(0, 50) || "";
+  
+  // Clean filename (remove invalid characters)
+  return name.replace(/[^a-zA-Z0-9\s-_]/g, "").trim();
+};
 
 interface CropBounds {
   left: number;
@@ -123,10 +138,10 @@ export const convertPdfToJpg = async (
     const numPages = pdf.numPages;
     const images: ConvertedImage[] = [];
 
-  // Convert mm to pixels with high DPI for maximum quality
-  const DPI = 300; // High DPI for print quality
+  // Convert mm to pixels with highest DPI for maximum quality
+  const DPI = 400; // Ultra high DPI for print quality
   const MM_TO_INCH = 0.0393701;
-  const SCALE_FACTOR = 6; // Render at 6x for superior quality
+  const SCALE_FACTOR = 8; // Render at 8x for superior quality
   const targetWidthPx = targetWidthMm * MM_TO_INCH * DPI * SCALE_FACTOR;
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
@@ -151,6 +166,15 @@ export const convertPdfToJpg = async (
       canvasContext: context,
       viewport: scaledViewport,
     } as any).promise;
+
+    // Extract text for filename
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item: any) => item.str)
+      .join(" ");
+    
+    // Try to extract customer name (first meaningful text line)
+    const customerName = extractCustomerName(pageText);
 
     // Detect and crop borders
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -197,10 +221,13 @@ export const convertPdfToJpg = async (
       finalCanvas.height
     );
 
-    const dataUrl = finalCanvas.toDataURL("image/jpeg", 0.98);
-    const baseName = file.name.replace(/\.pdf$/i, "");
-    const filename =
-      numPages > 1 ? `${baseName}_page${pageNum}.jpg` : `${baseName}.jpg`;
+    const dataUrl = finalCanvas.toDataURL("image/jpeg", 1.0);
+    
+    // Generate filename with customer name
+    const baseFilename = customerName || file.name.replace(/\.pdf$/i, "");
+    const filename = numPages > 1 
+      ? `${baseFilename}_page${pageNum}.jpg`
+      : `${baseFilename}.jpg`;
 
     images.push({
       id: `${file.name}-page-${pageNum}`,
@@ -209,6 +236,7 @@ export const convertPdfToJpg = async (
       pageNumber: pageNum,
       width: finalCanvas.width,
       height: finalCanvas.height,
+      customerName,
     });
 
     if (onProgress) {
