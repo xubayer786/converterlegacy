@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Printer, Check, MessageCircle, Eye, X } from "lucide-react";
+import { Download, Printer, Check, MessageCircle, Eye, X, Trash2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConvertedImage } from "@/lib/pdfConverter";
 import { ImagePreviewModal } from "./ImagePreviewModal";
@@ -11,9 +11,11 @@ import { toast } from "sonner";
 interface ImageGridProps {
   images: ConvertedImage[];
   onPrint: (images: ConvertedImage[]) => void;
+  onDeleteSelected: (ids: string[]) => void;
+  onReset: () => void;
 }
 
-export const ImageGrid = ({ images, onPrint }: ImageGridProps) => {
+export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageGridProps) => {
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [previewImage, setPreviewImage] = useState<ConvertedImage | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
@@ -92,6 +94,22 @@ export const ImageGrid = ({ images, onPrint }: ImageGridProps) => {
       return;
     }
     onPrint(selected);
+  };
+
+  const deleteSelected = () => {
+    if (selectedImages.size === 0) {
+      toast.error("No images selected");
+      return;
+    }
+    onDeleteSelected(Array.from(selectedImages));
+    setSelectedImages(new Set());
+    toast.success(`Deleted ${selectedImages.size} image(s)`);
+  };
+
+  const resetAll = () => {
+    onReset();
+    setSelectedImages(new Set());
+    toast.success("All images cleared");
   };
 
   const openPreview = (image: ConvertedImage) => {
@@ -185,6 +203,10 @@ export const ImageGrid = ({ images, onPrint }: ImageGridProps) => {
               <Printer className="h-4 w-4 mr-2" />
               Print
             </Button>
+            <Button variant="destructive" size="sm" onClick={deleteSelected}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
           </div>
         )}
 
@@ -201,6 +223,10 @@ export const ImageGrid = ({ images, onPrint }: ImageGridProps) => {
             <Button variant="default" size="sm" onClick={() => onPrint(images)}>
               <Printer className="h-4 w-4 mr-2" />
               Print All
+            </Button>
+            <Button variant="destructive" size="sm" onClick={resetAll}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset All
             </Button>
           </div>
         )}

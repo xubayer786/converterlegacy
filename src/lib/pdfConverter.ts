@@ -210,8 +210,8 @@ export const convertPdfToJpg = async (
       0
     );
 
-    // Apply sharpening for ultra-crisp text (grayscale for receipts)
-    croppedContext.filter = "contrast(1.25) brightness(0.95) saturate(0)";
+    // Apply sharpening for ultra-crisp text (preserve colors)
+    croppedContext.filter = "contrast(1.2) brightness(0.98)";
     croppedContext.drawImage(croppedCanvas, 0, 0);
     croppedContext.filter = "none";
 

@@ -67,6 +67,14 @@ const Index = () => {
     }
   };
 
+  const handleDeleteSelected = (ids: string[]) => {
+    setImages(prev => prev.filter(img => !ids.includes(img.id)));
+  };
+
+  const handleReset = () => {
+    setImages([]);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header
@@ -132,7 +140,12 @@ const Index = () => {
                 Converted Images ({images.length})
               </h2>
             </div>
-            <ImageGrid images={images} onPrint={handlePrint} />
+            <ImageGrid 
+              images={images} 
+              onPrint={handlePrint} 
+              onDeleteSelected={handleDeleteSelected}
+              onReset={handleReset}
+            />
           </div>
         )}
 
