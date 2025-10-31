@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Printer, Check, MessageCircle, Eye } from "lucide-react";
+import { Download, Printer, Check, MessageCircle, Eye, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConvertedImage } from "@/lib/pdfConverter";
 import { ImagePreviewModal } from "./ImagePreviewModal";
@@ -158,6 +158,17 @@ export const ImageGrid = ({ images, onPrint }: ImageGridProps) => {
               ? `${selectedImages.size} selected`
               : "Select all"}
           </span>
+          {selectedImages.size > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={unselectAll}
+              className="h-7 px-2"
+            >
+              <X className="h-3 w-3 mr-1" />
+              Deselect All
+            </Button>
+          )}
         </div>
 
         {selectedImages.size > 0 && (
