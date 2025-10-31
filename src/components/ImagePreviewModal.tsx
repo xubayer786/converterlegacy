@@ -1,4 +1,4 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, Printer, ChevronLeft, ChevronRight, X, MessageCircle } from "lucide-react";
 import { ConvertedImage } from "@/lib/pdfConverter";
@@ -29,6 +29,7 @@ export const ImagePreviewModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl h-[90vh] p-0 gap-0">
+        <DialogTitle className="sr-only">Image Preview: {image.filename}</DialogTitle>
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-semibold text-lg">{image.filename}</h3>
           <div className="flex items-center gap-2">

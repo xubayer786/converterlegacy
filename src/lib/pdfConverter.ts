@@ -138,10 +138,13 @@ export const convertPdfToJpg = async (
     const numPages = pdf.numPages;
     const images: ConvertedImage[] = [];
 
-  // Ultra-high quality rendering for crystal-clear output
+  // Ultra-high quality rendering for crystal-clear thermal printing
   const DPI = 300; // Professional print quality DPI
   const MM_TO_INCH = 0.0393701;
   const targetWidthPx = targetWidthMm * MM_TO_INCH * DPI;
+  
+  // HiDPI scale for ultra-sharp rendering (like Retina displays)
+  const outputScale = 2.0; // 2x for crystal clear output
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
@@ -151,25 +154,31 @@ export const convertPdfToJpg = async (
     const scale = targetWidthPx / viewport.width;
     const scaledViewport = page.getViewport({ scale });
 
-    // Render to canvas with optimized settings for maximum sharpness
+    // Create canvas with HiDPI scaling for maximum sharpness
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d", { 
       alpha: false,
       willReadFrequently: false,
       desynchronized: false
     })!;
-    canvas.width = scaledViewport.width;
-    canvas.height = scaledViewport.height;
+    
+    // Apply outputScale for HiDPI rendering
+    canvas.width = Math.floor(scaledViewport.width * outputScale);
+    canvas.height = Math.floor(scaledViewport.height * outputScale);
 
     // White background
     context.fillStyle = "#FFFFFF";
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Render with high quality settings
+    // Create transform matrix for HiDPI rendering
+    const transform = [outputScale, 0, 0, outputScale, 0, 0];
+
+    // Render with high quality settings and transform
     await page.render({
       canvasContext: context,
       viewport: scaledViewport,
-      intent: 'print', // Use print intent for maximum quality
+      transform: transform as any,
+      intent: 'print',
       renderInteractiveForms: false,
       annotationMode: 0,
     } as any).promise;
@@ -201,12 +210,12 @@ export const convertPdfToJpg = async (
       0
     );
 
-    // Apply sharpening and contrast enhancement for crystal-clear text
-    croppedContext.filter = "contrast(1.2) brightness(0.98) saturate(0)";
+    // Apply sharpening for ultra-crisp text (grayscale for receipts)
+    croppedContext.filter = "contrast(1.25) brightness(0.95) saturate(0)";
     croppedContext.drawImage(croppedCanvas, 0, 0);
     croppedContext.filter = "none";
 
-    // Convert to high-quality JPEG with maximum quality
+    // Convert to maximum quality JPEG
     const dataUrl = croppedCanvas.toDataURL("image/jpeg", 1.0);
     
     // Generate filename with customer name
