@@ -139,12 +139,12 @@ export const convertPdfToJpg = async (
     const images: ConvertedImage[] = [];
 
   // Ultra-high quality rendering for crystal-clear thermal printing
-  const DPI = 300; // Professional print quality DPI
+  const DPI = 600; // Maximum print quality DPI
   const MM_TO_INCH = 0.0393701;
   const targetWidthPx = targetWidthMm * MM_TO_INCH * DPI;
   
-  // HiDPI scale for ultra-sharp rendering (like Retina displays)
-  const outputScale = 2.0; // 2x for crystal clear output
+  // HiDPI scale for ultra-sharp rendering (4x for maximum clarity)
+  const outputScale = 4.0; // 4x for absolute maximum quality
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
@@ -210,8 +210,8 @@ export const convertPdfToJpg = async (
       0
     );
 
-    // Apply sharpening for ultra-crisp text (preserve colors)
-    croppedContext.filter = "contrast(1.2) brightness(0.98)";
+    // Apply minimal sharpening (preserve original quality)
+    croppedContext.filter = "contrast(1.1) brightness(0.99)";
     croppedContext.drawImage(croppedCanvas, 0, 0);
     croppedContext.filter = "none";
 

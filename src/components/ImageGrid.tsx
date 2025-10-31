@@ -129,32 +129,80 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
 
   const sendToWhatsApp = async (imagesToSend: ConvertedImage[]) => {
     try {
+      // Check if Web Share API is available
+      if (!navigator.canShare) {
+        toast.error("Your browser doesn't support file sharing");
+        return;
+      }
+
       const message = `Receipts from Legacy Converter (${imagesToSend.length} files)`;
       
-      // For mobile: use native share
-      if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        const files = await Promise.all(
-          imagesToSend.map(async (img) => {
-            const blob = await (await fetch(img.dataUrl)).blob();
-            return new File([blob], img.filename, { type: "image/jpeg" });
-          })
-        );
-        
-        await navigator.share({
-          files,
-          title: "Legacy Converter Receipts",
-          text: message,
-        });
-        toast.success("Shared to WhatsApp!");
-      } else {
-        // For desktop: open WhatsApp Web
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, "_blank");
-        toast.info("Please attach the receipts manually in WhatsApp Web");
+      // Compress and prepare files for WhatsApp (max 1MB each)
+      const files = await Promise.all(
+        imagesToSend.map(async (img) => {
+          const response = await fetch(img.dataUrl);
+          let blob = await response.blob();
+          
+          // If blob is larger than 1MB, compress it
+          if (blob.size > 1024 * 1024) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d')!;
+            const image = new Image();
+            
+            await new Promise((resolve) => {
+              image.onload = resolve;
+              image.src = img.dataUrl;
+            });
+            
+            // Calculate new dimensions to reduce file size
+            const maxDimension = 1500;
+            let width = image.width;
+            let height = image.height;
+            
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = (height / width) * maxDimension;
+                width = maxDimension;
+              } else {
+                width = (width / height) * maxDimension;
+                height = maxDimension;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(image, 0, 0, width, height);
+            
+            blob = await new Promise<Blob>((resolve) => {
+              canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.85);
+            });
+          }
+          
+          return new File([blob], img.filename, { type: "image/jpeg" });
+        })
+      );
+      
+      // Check if files can be shared
+      if (!navigator.canShare({ files })) {
+        toast.error("Your browser doesn't support sharing these files");
+        return;
       }
-    } catch (error) {
+      
+      // Share files - this will show WhatsApp in the share options
+      await navigator.share({
+        files,
+        title: "Legacy Converter Receipts",
+        text: message,
+      });
+      
+      toast.success("Files ready to send via WhatsApp!");
+    } catch (error: any) {
+      // User cancelled the share
+      if (error.name === 'AbortError') {
+        return;
+      }
       console.error("WhatsApp share error:", error);
-      toast.error("Failed to share via WhatsApp");
+      toast.error("Failed to share files. Try downloading and sending manually.");
     }
   };
 
