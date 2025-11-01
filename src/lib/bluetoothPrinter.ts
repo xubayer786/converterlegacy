@@ -135,13 +135,31 @@ const sendCommand = async (command: number[], description?: string) => {
 
   try {
     const data = new Uint8Array(command);
-    if (printerCharacteristic.properties.writeWithoutResponse) {
-      await printerCharacteristic.writeValueWithoutResponse(data);
+    const maxChunkSize = 512; // Bluetooth MTU limit
+    
+    // Split data into chunks if it exceeds max size
+    if (data.length <= maxChunkSize) {
+      if (printerCharacteristic.properties.writeWithoutResponse) {
+        await printerCharacteristic.writeValueWithoutResponse(data);
+      } else {
+        await printerCharacteristic.writeValue(data);
+      }
     } else {
-      await printerCharacteristic.writeValue(data);
+      // Send in chunks
+      for (let offset = 0; offset < data.length; offset += maxChunkSize) {
+        const chunk = data.slice(offset, offset + maxChunkSize);
+        if (printerCharacteristic.properties.writeWithoutResponse) {
+          await printerCharacteristic.writeValueWithoutResponse(chunk);
+        } else {
+          await printerCharacteristic.writeValue(chunk);
+        }
+        // Small delay between chunks
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
     }
+    
     if (description) {
-      console.log(`Sent command: ${description}`);
+      console.log(`Sent command: ${description} (${data.length} bytes)`);
     }
   } catch (error) {
     console.error(`Failed to send command ${description}:`, error);
