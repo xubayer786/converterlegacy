@@ -132,7 +132,7 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
       const message = `Receipts from Legacy Converter (${imagesToSend.length} files)`;
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       
-      // Mobile: Use Web Share API to open WhatsApp with files
+      // Mobile: Use Web Share API to open WhatsApp with files attached
       if (isMobile && navigator.canShare) {
         // Compress and prepare files for WhatsApp (max 1MB each)
         const files = await Promise.all(
@@ -186,34 +186,29 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
             title: "Legacy Converter Receipts",
             text: message,
           });
-          toast.success("Opening WhatsApp...");
+          toast.success("Opening WhatsApp with receipts!");
           return;
         }
       }
       
-      // Desktop: Auto-download files and open WhatsApp Web
-      if (imagesToSend.length === 1) {
-        // Single file: download directly
+      // Desktop: Download individual files and open WhatsApp Web
+      toast.info(`Downloading ${imagesToSend.length} receipt(s)...`);
+      
+      // Download each image individually
+      for (const img of imagesToSend) {
         const link = document.createElement("a");
-        link.href = imagesToSend[0].dataUrl;
-        link.download = imagesToSend[0].filename;
+        link.href = img.dataUrl;
+        link.download = img.filename;
         link.click();
-        toast.success("Receipt downloaded! Opening WhatsApp...");
-      } else {
-        // Multiple files: create ZIP
-        const zip = new JSZip();
-        for (const img of imagesToSend) {
-          const base64Data = img.dataUrl.split(",")[1];
-          zip.file(img.filename, base64Data, { base64: true });
-        }
-        const blob = await zip.generateAsync({ type: "blob" });
-        saveAs(blob, "receipts-for-whatsapp.zip");
-        toast.success("Receipts downloaded as ZIP! Opening WhatsApp...");
+        // Small delay between downloads to avoid browser blocking
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
+      
+      toast.success("Receipts downloaded! Opening WhatsApp...");
       
       // Open WhatsApp Web with message
       setTimeout(() => {
-        const whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(message + "\n\n(Please attach the downloaded files)")}`;
+        const whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, "_blank");
       }, 500);
       
