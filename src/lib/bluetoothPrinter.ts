@@ -260,37 +260,41 @@ export const printImages = async (
 
       // Convert image to bitmap
       console.log("Converting image to bitmap...");
-      const bitmap = await imageToEscPosBitmap(image.dataUrl, 576); // 576px = 72mm at 203dpi
+      const bitmap = await imageToEscPosBitmap(image.dataUrl, 384); // 384px = 48mm at 203dpi (58mm printer)
       const widthBytes = bitmap[0].length;
       const height = bitmap.length;
 
       console.log(`Sending bitmap: ${widthBytes} bytes wide, ${height} lines tall`);
 
-      // Send bitmap data using ESC * command (more compatible)
-      let linesSent = 0;
-      for (let y = 0; y < height; y++) {
-        const line = bitmap[y];
+      // Send bitmap using GS v 0 command (most compatible method)
+      // Break into chunks of 256 lines for better compatibility
+      const chunkSize = 256;
+      for (let startY = 0; startY < height; startY += chunkSize) {
+        const endY = Math.min(startY + chunkSize, height);
+        const chunkHeight = endY - startY;
         
-        // ESC * m nL nH d1...dk - Print raster bit image
-        // m = 33 (24-dot double-density)
+        // GS v 0 m xL xH yL yH d1...dk - Print raster bit image
+        // m = 0 (normal mode)
         const cmd = [
-          ESC, 0x2a, 33, 
-          widthBytes & 0xff, 
+          GS, 0x76, 0x30, 0x00,
+          widthBytes & 0xff,
           (widthBytes >> 8) & 0xff,
-          ...line,
-          0x0a // Line feed after each line
+          chunkHeight & 0xff,
+          (chunkHeight >> 8) & 0xff
         ];
-
-        await sendCommand(cmd);
         
-        // Progress feedback every 10 lines
-        if (y % 10 === 0) {
-          linesSent = y;
-          console.log(`Sent ${linesSent}/${height} lines`);
+        // Add bitmap data for this chunk
+        for (let y = startY; y < endY; y++) {
+          cmd.push(...bitmap[y]);
         }
         
-        // Small delay for stability (adjust based on printer)
-        await new Promise((resolve) => setTimeout(resolve, 5));
+        await sendCommand(cmd, `Print chunk ${startY}-${endY}`);
+        
+        // Progress feedback
+        console.log(`Sent lines ${startY}-${endY}/${height}`);
+        
+        // Small delay between chunks
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       console.log(`Image sent successfully (${height} lines)`);
