@@ -35,12 +35,21 @@ const connectToPrinter = async (): Promise<boolean> => {
   }
 
   try {
-    if (!connectedDevice.gatt?.connected) {
+    // Ensure fresh connection
+    if (connectedDevice.gatt?.connected) {
+      console.log("Already connected, using existing connection");
+    } else {
+      console.log("Connecting to GATT server...");
       await connectedDevice.gatt?.connect();
     }
 
-    const server = await connectedDevice.gatt?.connect();
-    if (!server) throw new Error("Failed to connect to GATT server");
+    const server = connectedDevice.gatt;
+    if (!server || !server.connected) {
+      throw new Error("Failed to connect to GATT server");
+    }
+
+    // Wait for connection to stabilize
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Get all available services
     const services = await server.getPrimaryServices();
@@ -117,9 +126,13 @@ const connectToPrinter = async (): Promise<boolean> => {
       throw new Error("No writable characteristic found. Device may not be a printer.");
     }
 
+    // Wait for characteristic to be ready
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     return true;
   } catch (error) {
     console.error("Printer connection error:", error);
+    printerCharacteristic = null;
     throw error;
   }
 };
@@ -135,7 +148,7 @@ const sendCommand = async (command: number[], description?: string) => {
 
   try {
     const data = new Uint8Array(command);
-    const maxChunkSize = 512; // Bluetooth MTU limit
+    const maxChunkSize = 200; // Reduced for better compatibility
     
     // Split data into chunks if it exceeds max size
     if (data.length <= maxChunkSize) {
@@ -144,8 +157,9 @@ const sendCommand = async (command: number[], description?: string) => {
       } else {
         await printerCharacteristic.writeValue(data);
       }
+      await new Promise(resolve => setTimeout(resolve, 10)); // Wait after each write
     } else {
-      // Send in chunks
+      // Send in chunks with delays
       for (let offset = 0; offset < data.length; offset += maxChunkSize) {
         const chunk = data.slice(offset, offset + maxChunkSize);
         if (printerCharacteristic.properties.writeWithoutResponse) {
@@ -153,8 +167,8 @@ const sendCommand = async (command: number[], description?: string) => {
         } else {
           await printerCharacteristic.writeValue(chunk);
         }
-        // Small delay between chunks
-        await new Promise(resolve => setTimeout(resolve, 20));
+        // Delay between chunks to prevent buffer overflow
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
     
@@ -278,21 +292,19 @@ export const printImages = async (
 
       // Convert image to bitmap
       console.log("Converting image to bitmap...");
-      const bitmap = await imageToEscPosBitmap(image.dataUrl, 384); // 384px = 48mm at 203dpi (58mm printer)
+      const bitmap = await imageToEscPosBitmap(image.dataUrl, 384); // 384px for 58mm printer
       const widthBytes = bitmap[0].length;
       const height = bitmap.length;
 
       console.log(`Sending bitmap: ${widthBytes} bytes wide, ${height} lines tall`);
 
-      // Send bitmap using GS v 0 command (most compatible method)
-      // Break into chunks of 256 lines for better compatibility
-      const chunkSize = 256;
+      // Send bitmap in smaller chunks (64 lines at a time for stability)
+      const chunkSize = 64;
       for (let startY = 0; startY < height; startY += chunkSize) {
         const endY = Math.min(startY + chunkSize, height);
         const chunkHeight = endY - startY;
         
         // GS v 0 m xL xH yL yH d1...dk - Print raster bit image
-        // m = 0 (normal mode)
         const cmd = [
           GS, 0x76, 0x30, 0x00,
           widthBytes & 0xff,
@@ -309,10 +321,13 @@ export const printImages = async (
         await sendCommand(cmd, `Print chunk ${startY}-${endY}`);
         
         // Progress feedback
-        console.log(`Sent lines ${startY}-${endY}/${height}`);
+        if (onProgress) {
+          const progress = Math.floor((endY / height) * 100);
+          console.log(`Progress: ${progress}% (${endY}/${height} lines)`);
+        }
         
-        // Small delay between chunks
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Delay between chunks for printer buffer
+        await new Promise((resolve) => setTimeout(resolve, 150));
       }
 
       console.log(`Image sent successfully (${height} lines)`);
