@@ -28,24 +28,44 @@ export const ImagePreviewModal = ({
 }: ImagePreviewModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] p-0 gap-0">
+      <DialogContent className="max-w-4xl h-[90vh] p-0 gap-0 [&>button]:hidden">
         <DialogTitle className="sr-only">Image Preview: {image.filename}</DialogTitle>
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-semibold text-lg">{image.filename}</h3>
+        <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-card to-card/80 backdrop-blur-sm">
+          <h3 className="font-semibold text-lg truncate max-w-md">{image.filename}</h3>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onDownload}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onDownload}
+              className="hover:border-primary/50 transition-all duration-300"
+            >
               <Download className="h-4 w-4 mr-2" />
               Download
             </Button>
-            <Button variant="outline" size="sm" onClick={onWhatsApp}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onWhatsApp}
+              className="hover:border-green-500/50 transition-all duration-300"
+            >
               <MessageCircle className="h-4 w-4 mr-2" />
               WhatsApp
             </Button>
-            <Button variant="default" size="sm" onClick={onPrint}>
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={onPrint}
+              className="bg-gradient-to-r from-primary to-accent hover:shadow-glow transition-all duration-300"
+            >
               <Printer className="h-4 w-4 mr-2" />
               Print
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onClose}
+              className="hover:bg-destructive/10 hover:text-destructive transition-all duration-300"
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>

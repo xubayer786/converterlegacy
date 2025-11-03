@@ -181,7 +181,7 @@ const sendCommand = async (command: number[], description?: string) => {
   }
 };
 
-// Convert image to ESC/POS bitmap format (more reliable than raster)
+// Convert image to ESC/POS bitmap format - optimized for thermal printers
 const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Promise<number[][]> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -213,9 +213,7 @@ const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Pro
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, width, height);
 
-        // Draw image with high quality
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
+        // Draw image
         ctx.drawImage(img, 0, 0, width, height);
 
         // Get image data
@@ -224,7 +222,7 @@ const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Pro
 
         console.log(`Processing image: ${width}x${height}px`);
 
-        // Convert to monochrome bitmap with dithering
+        // Convert to monochrome bitmap
         const bitmap: number[][] = [];
         const widthBytes = width / 8;
 
@@ -238,8 +236,7 @@ const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Pro
                 const idx = (y * width + px) * 4;
                 const gray = pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114;
                 
-                // Threshold with slight adjustment for better contrast
-                if (gray < 140) {
+                if (gray < 128) {
                   byte |= 1 << (7 - bit);
                 }
               }
@@ -292,42 +289,31 @@ export const printImages = async (
 
       // Convert image to bitmap
       console.log("Converting image to bitmap...");
-      const bitmap = await imageToEscPosBitmap(image.dataUrl, 384); // 384px for 58mm printer
+      const bitmap = await imageToEscPosBitmap(image.dataUrl, 384);
       const widthBytes = bitmap[0].length;
       const height = bitmap.length;
 
       console.log(`Sending bitmap: ${widthBytes} bytes wide, ${height} lines tall`);
 
-      // Send bitmap in smaller chunks (64 lines at a time for stability)
-      const chunkSize = 64;
-      for (let startY = 0; startY < height; startY += chunkSize) {
-        const endY = Math.min(startY + chunkSize, height);
-        const chunkHeight = endY - startY;
-        
-        // GS v 0 m xL xH yL yH d1...dk - Print raster bit image
-        const cmd = [
-          GS, 0x76, 0x30, 0x00,
-          widthBytes & 0xff,
-          (widthBytes >> 8) & 0xff,
-          chunkHeight & 0xff,
-          (chunkHeight >> 8) & 0xff
-        ];
-        
-        // Add bitmap data for this chunk
-        for (let y = startY; y < endY; y++) {
-          cmd.push(...bitmap[y]);
-        }
-        
-        await sendCommand(cmd, `Print chunk ${startY}-${endY}`);
-        
-        // Progress feedback
-        if (onProgress) {
-          const progress = Math.floor((endY / height) * 100);
-          console.log(`Progress: ${progress}% (${endY}/${height} lines)`);
-        }
-        
-        // Delay between chunks for printer buffer
-        await new Promise((resolve) => setTimeout(resolve, 150));
+      // Send entire bitmap using GS v 0 command (raster bit image)
+      const cmd = [
+        GS, 0x76, 0x30, 0x00,
+        widthBytes & 0xff,
+        (widthBytes >> 8) & 0xff,
+        height & 0xff,
+        (height >> 8) & 0xff
+      ];
+      
+      // Add all bitmap data
+      for (let y = 0; y < height; y++) {
+        cmd.push(...bitmap[y]);
+      }
+      
+      // Send the complete bitmap command
+      await sendCommand(cmd, `Print bitmap ${height} lines`);
+      
+      if (onProgress) {
+        console.log(`Image sent: ${height} lines`);
       }
 
       console.log(`Image sent successfully (${height} lines)`);

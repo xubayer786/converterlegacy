@@ -227,47 +227,73 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
   return (
     <div className="space-y-6">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-card border border-border rounded-lg">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={selectedImages.size === images.length && images.length > 0}
-            onCheckedChange={(checked) =>
-              checked ? selectAll() : unselectAll()
-            }
-          />
-          <span className="text-sm font-medium">
-            {selectedImages.size > 0
-              ? `${selectedImages.size} selected`
-              : "Select all"}
-          </span>
-          {selectedImages.size > 0 && (
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-gradient-to-r from-card to-card/80 border border-border/50 rounded-xl shadow-lg backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          {selectedImages.size === 0 ? (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={unselectAll}
-              className="h-7 px-2"
+              onClick={selectAll}
+              className="border-primary/50 bg-gradient-to-r from-primary/10 to-accent/10 hover:from-primary/20 hover:to-accent/20 transition-all duration-300"
             >
-              <X className="h-3 w-3 mr-1" />
-              Deselect All
+              <Check className="h-4 w-4 mr-2" />
+              Select All
             </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg">
+                <span className="text-sm font-semibold text-primary">
+                  {selectedImages.size} selected
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={unselectAll}
+                className="h-8"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            </div>
           )}
         </div>
 
         {selectedImages.size > 0 && (
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={downloadSelected}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={downloadSelected}
+              className="hover:border-primary/50 transition-all duration-300"
+            >
               <Download className="h-4 w-4 mr-2" />
               Download
             </Button>
-            <Button variant="outline" size="sm" onClick={() => sendToWhatsApp(images.filter(img => selectedImages.has(img.id)))}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => sendToWhatsApp(images.filter(img => selectedImages.has(img.id)))}
+              className="hover:border-green-500/50 transition-all duration-300"
+            >
               <MessageCircle className="h-4 w-4 mr-2" />
               WhatsApp
             </Button>
-            <Button variant="default" size="sm" onClick={printSelected}>
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={printSelected}
+              className="bg-gradient-to-r from-primary to-accent hover:shadow-glow transition-all duration-300"
+            >
               <Printer className="h-4 w-4 mr-2" />
               Print
             </Button>
-            <Button variant="destructive" size="sm" onClick={deleteSelected}>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={deleteSelected}
+              className="hover:shadow-lg transition-all duration-300"
+            >
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </Button>
@@ -276,19 +302,39 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
 
         {selectedImages.size === 0 && images.length > 0 && (
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={downloadAll}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={downloadAll}
+              className="hover:border-primary/50 transition-all duration-300"
+            >
               <Download className="h-4 w-4 mr-2" />
               Download All
             </Button>
-            <Button variant="outline" size="sm" onClick={() => sendToWhatsApp(images)}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => sendToWhatsApp(images)}
+              className="hover:border-green-500/50 transition-all duration-300"
+            >
               <MessageCircle className="h-4 w-4 mr-2" />
-              Send All to WhatsApp
+              Send All
             </Button>
-            <Button variant="default" size="sm" onClick={() => onPrint(images)}>
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={() => onPrint(images)}
+              className="bg-gradient-to-r from-primary to-accent hover:shadow-glow transition-all duration-300"
+            >
               <Printer className="h-4 w-4 mr-2" />
               Print All
             </Button>
-            <Button variant="destructive" size="sm" onClick={resetAll}>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={resetAll}
+              className="hover:shadow-lg transition-all duration-300"
+            >
               <RotateCcw className="h-4 w-4 mr-2" />
               Reset All
             </Button>
@@ -296,15 +342,15 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
         )}
       </div>
 
-      {/* Image Grid - Fixed smaller thumbnails */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+      {/* Image Grid */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-4">
         {images.map((image) => (
           <div
             key={image.id}
-            className={`group relative bg-card border-2 rounded-lg overflow-hidden transition-all hover:shadow-lg ${
+            className={`group relative bg-gradient-to-br from-card to-card/80 border-2 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl ${
               selectedImages.has(image.id)
-                ? "border-primary ring-2 ring-primary/20"
-                : "border-border"
+                ? "border-primary ring-2 ring-primary/30 shadow-glow"
+                : "border-border/50 hover:border-primary/30"
             }`}
           >
             <div className="absolute top-1.5 left-1.5 z-10">
