@@ -225,24 +225,24 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
   if (images.length === 0) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-gradient-to-r from-card to-card/80 border border-border/50 rounded-xl shadow-lg backdrop-blur-sm">
-        <div className="flex items-center gap-3">
+      <div className="glass-strong flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl" style={{ boxShadow: 'var(--shadow-card)' }}>
+        <div className="flex items-center gap-2 sm:gap-3">
           {selectedImages.size === 0 ? (
             <Button
               variant="outline"
               size="sm"
               onClick={selectAll}
-              className="border-primary/50 bg-gradient-to-r from-primary/10 to-accent/10 hover:from-primary/20 hover:to-accent/20 transition-all duration-300"
+              className="border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-300 text-xs sm:text-sm"
             >
-              <Check className="h-4 w-4 mr-2" />
+              <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               Select All
             </Button>
           ) : (
             <div className="flex items-center gap-2">
-              <div className="px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg">
-                <span className="text-sm font-semibold text-primary">
+              <div className="px-2.5 sm:px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg">
+                <span className="text-xs sm:text-sm font-semibold text-primary">
                   {selectedImages.size} selected
                 </span>
               </div>
@@ -250,9 +250,9 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
                 variant="ghost"
                 size="sm"
                 onClick={unselectAll}
-                className="h-8"
+                className="h-7 sm:h-8 text-xs sm:text-sm"
               >
-                <X className="h-4 w-4 mr-1" />
+                <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                 Clear
               </Button>
             </div>
@@ -260,109 +260,114 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
         </div>
 
         {selectedImages.size > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={downloadSelected}
-              className="hover:border-primary/50 transition-all duration-300"
+              className="hover:border-primary/50 transition-all duration-300 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Download
+              <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Download</span>
             </Button>
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => sendToWhatsApp(images.filter(img => selectedImages.has(img.id)))}
-              className="hover:border-green-500/50 transition-all duration-300"
+              className="hover:border-green-500/50 transition-all duration-300 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <MessageCircle className="h-4 w-4 mr-2" />
-              WhatsApp
+              <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">WhatsApp</span>
             </Button>
             <Button 
               variant="default" 
               size="sm" 
               onClick={printSelected}
-              className="bg-gradient-to-r from-primary to-accent hover:shadow-glow transition-all duration-300"
+              className="bg-gradient-to-r from-primary to-accent hover:shadow-glow transition-all duration-300 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <Printer className="h-4 w-4 mr-2" />
-              Print
+              <Printer className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Print</span>
             </Button>
             <Button 
               variant="destructive" 
               size="sm" 
               onClick={deleteSelected}
-              className="hover:shadow-lg transition-all duration-300"
+              className="hover:shadow-lg transition-all duration-300 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Delete</span>
             </Button>
           </div>
         )}
 
         {selectedImages.size === 0 && images.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={downloadAll}
-              className="hover:border-primary/50 transition-all duration-300"
+              className="hover:border-primary/50 transition-all duration-300 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Download All
+              <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Download All</span>
+              <span className="sm:hidden">Download</span>
             </Button>
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => sendToWhatsApp(images)}
-              className="hover:border-green-500/50 transition-all duration-300"
+              className="hover:border-green-500/50 transition-all duration-300 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Send All
+              <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Send All</span>
+              <span className="sm:hidden">Send</span>
             </Button>
             <Button 
               variant="default" 
               size="sm" 
               onClick={() => onPrint(images)}
-              className="bg-gradient-to-r from-primary to-accent hover:shadow-glow transition-all duration-300"
+              className="bg-gradient-to-r from-primary to-accent hover:shadow-glow transition-all duration-300 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <Printer className="h-4 w-4 mr-2" />
-              Print All
+              <Printer className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Print All</span>
+              <span className="sm:hidden">Print</span>
             </Button>
             <Button 
               variant="destructive" 
               size="sm" 
               onClick={resetAll}
-              className="hover:shadow-lg transition-all duration-300"
+              className="hover:shadow-lg transition-all duration-300 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset All
+              <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Reset All</span>
+              <span className="sm:hidden">Reset</span>
             </Button>
           </div>
         )}
       </div>
 
       {/* Image Grid */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4">
         {images.map((image) => (
           <div
             key={image.id}
-            className={`group relative bg-gradient-to-br from-card to-card/80 border-2 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl ${
+            className={`glass group relative rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] sm:hover:scale-105 ${
               selectedImages.has(image.id)
-                ? "border-primary ring-2 ring-primary/30 shadow-glow"
-                : "border-border/50 hover:border-primary/30"
+                ? "border-2 border-primary ring-2 ring-primary/30"
+                : "border border-border/30 hover:border-primary/50"
             }`}
+            style={{ boxShadow: selectedImages.has(image.id) ? 'var(--shadow-glow)' : 'var(--shadow-card)' }}
           >
-            <div className="absolute top-1.5 left-1.5 z-10">
+            <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 z-10">
               <Checkbox
                 checked={selectedImages.has(image.id)}
                 onCheckedChange={() => toggleSelection(image.id)}
-                className="bg-background/80 backdrop-blur-sm h-4 w-4"
+                className="glass-strong h-4 w-4 sm:h-5 sm:w-5"
               />
             </div>
 
             <div
-              className="aspect-[3/4] w-full h-32 cursor-pointer"
+              className="aspect-[3/4] w-full cursor-pointer"
               onClick={() => openPreview(image)}
             >
               <img
@@ -372,42 +377,42 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
               />
             </div>
 
-            <div className="p-2 space-y-1.5">
-              <p className="text-[10px] font-medium truncate" title={image.filename}>
+            <div className="p-2 sm:p-3 space-y-1.5 sm:space-y-2">
+              <p className="text-[10px] sm:text-xs font-medium truncate" title={image.filename}>
                 {image.filename}
               </p>
-              <div className="flex items-center gap-0.5 justify-center">
+              <div className="flex items-center gap-0.5 sm:gap-1 justify-center">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-6 w-6 sm:h-7 sm:w-7"
                   onClick={() => openPreview(image)}
                 >
-                  <Eye className="h-3 w-3" />
+                  <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-6 w-6 sm:h-7 sm:w-7"
                   onClick={() => downloadImage(image)}
                 >
-                  <Download className="h-3 w-3" />
+                  <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-6 w-6 sm:h-7 sm:w-7"
                   onClick={() => sendToWhatsApp([image])}
                 >
-                  <MessageCircle className="h-3 w-3" />
+                  <MessageCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-6 w-6 sm:h-7 sm:w-7"
                   onClick={() => onPrint([image])}
                 >
-                  <Printer className="h-3 w-3" />
+                  <Printer className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </Button>
               </div>
             </div>

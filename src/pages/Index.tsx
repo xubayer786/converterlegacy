@@ -82,34 +82,47 @@ const Index = () => {
         isConnected={isPrinterConnected}
       />
 
-      <main className="container mx-auto px-4 py-8 space-y-12">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12 space-y-8 sm:space-y-12 max-w-7xl">
         {/* Hero Section */}
         {images.length === 0 && !isConverting && (
-          <div
-            className="relative rounded-2xl overflow-hidden bg-cover bg-center"
-            style={{ backgroundImage: `url(${heroImage})` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-accent/90 backdrop-blur-sm" />
-            <div className="relative px-6 py-16 sm:py-24 text-center">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight">
-                Legacy Converter
-              </h1>
-              <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto mb-8">
-                Transform PDF invoices into high-quality JPG receipts with
-                intelligent cropping and direct thermal printing
-              </p>
-              <div className="flex flex-wrap justify-center gap-6 text-white/80 text-sm">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  <span>Auto-convert on upload</span>
+          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent" 
+                 style={{ boxShadow: 'var(--shadow-glow)' }} />
+            <div className="glass-strong relative px-6 sm:px-8 lg:px-12 py-12 sm:py-16 lg:py-24">
+              <div className="text-center max-w-4xl mx-auto">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6 sm:mb-8">
+                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <span className="text-xs sm:text-sm font-medium text-primary">Powered by AI</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5" />
-                  <span>Smart border cropping</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Printer className="h-5 w-5" />
-                  <span>Bluetooth thermal printing</span>
+                
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-foreground mb-4 sm:mb-6 tracking-tight leading-tight">
+                  Everything App for your
+                  <span className="block bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    Receipt Printing
+                  </span>
+                </h1>
+                
+                <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed">
+                  Transform PDF invoices into high-quality JPG receipts with
+                  intelligent cropping and direct thermal printing
+                </p>
+                
+                <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-muted-foreground text-xs sm:text-sm">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg glass">
+                    <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    <span className="hidden sm:inline">Auto-convert on upload</span>
+                    <span className="sm:hidden">Auto-convert</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg glass">
+                    <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    <span className="hidden sm:inline">Smart border cropping</span>
+                    <span className="sm:hidden">Smart crop</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg glass">
+                    <Printer className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    <span className="hidden sm:inline">Bluetooth thermal printing</span>
+                    <span className="sm:hidden">Bluetooth print</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -122,22 +135,24 @@ const Index = () => {
         {/* Conversion Progress */}
         {isConverting && (
           <div className="max-w-2xl mx-auto space-y-4">
-            <div className="flex items-center justify-center gap-3 text-primary">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <p className="text-lg font-medium">
-                Converting PDF to JPG... {Math.round(conversionProgress)}%
-              </p>
+            <div className="glass-strong rounded-2xl p-6 sm:p-8" style={{ boxShadow: 'var(--shadow-premium)' }}>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-primary mb-4">
+                <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin" />
+                <p className="text-base sm:text-lg font-medium text-center">
+                  Converting PDF to JPG... {Math.round(conversionProgress)}%
+                </p>
+              </div>
+              <Progress value={conversionProgress} className="h-2 sm:h-3" />
             </div>
-            <Progress value={conversionProgress} className="h-2" />
           </div>
         )}
 
         {/* Image Grid */}
         {images.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">
-                Converted Images ({images.length})
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
+                Converted Images <span className="text-primary">({images.length})</span>
               </h2>
             </div>
             <ImageGrid 
@@ -151,8 +166,8 @@ const Index = () => {
 
         {/* Empty State */}
         {images.length === 0 && !isConverting && (
-          <div className="text-center py-12 text-muted-foreground">
-            <p className="text-lg">
+          <div className="text-center py-8 sm:py-12 text-muted-foreground">
+            <p className="text-base sm:text-lg">
               Upload PDF files to get started with conversion
             </p>
           </div>
