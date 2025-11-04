@@ -182,7 +182,7 @@ const sendCommand = async (command: number[], description?: string) => {
 };
 
 // Convert image to ESC/POS bitmap format - optimized for thermal printers
-const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Promise<number[][]> => {
+const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 576): Promise<number[][]> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -222,6 +222,36 @@ const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Pro
 
         console.log(`Processing image: ${width}x${height}px`);
 
+        // Convert to grayscale first
+        const grayscale: number[] = new Array(width * height);
+        for (let i = 0; i < width * height; i++) {
+          const idx = i * 4;
+          grayscale[i] = pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114;
+        }
+
+        // Apply Floyd-Steinberg dithering for better text quality
+        const threshold = 160; // Adjusted for better text contrast
+        const dithered = new Uint8Array(width * height);
+        
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            const oldPixel = grayscale[idx];
+            const newPixel = oldPixel < threshold ? 0 : 255;
+            dithered[idx] = newPixel;
+            
+            const error = oldPixel - newPixel;
+            
+            // Distribute error to neighboring pixels (Floyd-Steinberg)
+            if (x + 1 < width) grayscale[idx + 1] += error * 7 / 16;
+            if (y + 1 < height) {
+              if (x > 0) grayscale[idx + width - 1] += error * 3 / 16;
+              grayscale[idx + width] += error * 5 / 16;
+              if (x + 1 < width) grayscale[idx + width + 1] += error * 1 / 16;
+            }
+          }
+        }
+
         // Convert to monochrome bitmap
         const bitmap: number[][] = [];
         const widthBytes = width / 8;
@@ -233,10 +263,8 @@ const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Pro
             for (let bit = 0; bit < 8; bit++) {
               const px = x + bit;
               if (px < width) {
-                const idx = (y * width + px) * 4;
-                const gray = pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114;
-                
-                if (gray < 128) {
+                const idx = y * width + px;
+                if (dithered[idx] === 0) {
                   byte |= 1 << (7 - bit);
                 }
               }
@@ -287,9 +315,9 @@ export const printImages = async (
       await sendCommand([ESC, 0x33, 0x00], "Set line spacing");
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Convert image to bitmap
+      // Convert image to bitmap with larger width for better text clarity
       console.log("Converting image to bitmap...");
-      const bitmap = await imageToEscPosBitmap(image.dataUrl, 384);
+      const bitmap = await imageToEscPosBitmap(image.dataUrl, 576);
       const widthBytes = bitmap[0].length;
       const height = bitmap.length;
 

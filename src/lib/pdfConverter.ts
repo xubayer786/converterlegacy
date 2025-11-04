@@ -138,13 +138,13 @@ export const convertPdfToJpg = async (
     const numPages = pdf.numPages;
     const images: ConvertedImage[] = [];
 
-  // Ultra-high quality rendering for crystal-clear thermal printing
-  const DPI = 600; // Maximum print quality DPI
+  // Optimized rendering for thermal printer compatibility
+  const DPI = 300; // Optimal for thermal printers (203-300 DPI native)
   const MM_TO_INCH = 0.0393701;
   const targetWidthPx = targetWidthMm * MM_TO_INCH * DPI;
   
-  // HiDPI scale for ultra-sharp rendering (4x for maximum clarity)
-  const outputScale = 4.0; // 4x for absolute maximum quality
+  // HiDPI scale for sharp rendering optimized for thermal output
+  const outputScale = 2.0; // 2x for clarity without over-rendering
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
