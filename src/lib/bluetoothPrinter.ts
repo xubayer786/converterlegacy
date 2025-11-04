@@ -349,8 +349,8 @@ export const printImages = async (
 
       console.log(`Image sent successfully (${height} lines)`);
 
-      // Feed paper and cut
-      await sendCommand([0x0a, 0x0a, 0x0a, 0x0a], "Feed paper");
+      // Feed paper and cut (3 line feeds = ~3/4 inch gap)
+      await sendCommand([0x0a, 0x0a, 0x0a], "Feed paper");
       await new Promise((resolve) => setTimeout(resolve, 100));
       
       await sendCommand([GS, 0x56, 0x00], "Cut paper");
