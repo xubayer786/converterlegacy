@@ -181,8 +181,8 @@ const sendCommand = async (command: number[], description?: string) => {
   }
 };
 
-// Convert image to ESC/POS bitmap format - maximized for 57mm paper
-const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 512): Promise<number[][]> => {
+// Convert image to ESC/POS bitmap format - optimized for 57mm paper printable area
+const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 448): Promise<number[][]> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -315,9 +315,9 @@ export const printImages = async (
       await sendCommand([ESC, 0x33, 0x00], "Set line spacing");
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Convert image to bitmap - maximum width for 57mm paper
+      // Convert image to bitmap - optimized width to prevent cropping
       console.log("Converting image to bitmap...");
-      const bitmap = await imageToEscPosBitmap(image.dataUrl, 512);
+      const bitmap = await imageToEscPosBitmap(image.dataUrl, 448);
       const widthBytes = bitmap[0].length;
       const height = bitmap.length;
 
