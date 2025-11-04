@@ -182,7 +182,7 @@ const sendCommand = async (command: number[], description?: string) => {
 };
 
 // Convert image to ESC/POS bitmap format - optimized for 57mm paper printable area
-const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 448): Promise<number[][]> => {
+const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Promise<number[][]> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -230,7 +230,7 @@ const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 448): Pro
         }
 
         // Apply Floyd-Steinberg dithering for better text quality
-        const threshold = 160; // Adjusted for better text contrast
+        const threshold = 200; // Higher threshold to reduce black patterns on white areas
         const dithered = new Uint8Array(width * height);
         
         for (let y = 0; y < height; y++) {
@@ -242,12 +242,15 @@ const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 448): Pro
             
             const error = oldPixel - newPixel;
             
-            // Distribute error to neighboring pixels (Floyd-Steinberg)
-            if (x + 1 < width) grayscale[idx + 1] += error * 7 / 16;
-            if (y + 1 < height) {
-              if (x > 0) grayscale[idx + width - 1] += error * 3 / 16;
-              grayscale[idx + width] += error * 5 / 16;
-              if (x + 1 < width) grayscale[idx + width + 1] += error * 1 / 16;
+            // Only apply dithering if there's significant detail (not on pure white areas)
+            if (Math.abs(error) > 10) {
+              // Distribute error to neighboring pixels (Floyd-Steinberg)
+              if (x + 1 < width) grayscale[idx + 1] += error * 7 / 16;
+              if (y + 1 < height) {
+                if (x > 0) grayscale[idx + width - 1] += error * 3 / 16;
+                grayscale[idx + width] += error * 5 / 16;
+                if (x + 1 < width) grayscale[idx + width + 1] += error * 1 / 16;
+              }
             }
           }
         }
@@ -317,7 +320,7 @@ export const printImages = async (
 
       // Convert image to bitmap - optimized width to prevent cropping
       console.log("Converting image to bitmap...");
-      const bitmap = await imageToEscPosBitmap(image.dataUrl, 448);
+      const bitmap = await imageToEscPosBitmap(image.dataUrl, 384);
       const widthBytes = bitmap[0].length;
       const height = bitmap.length;
 
