@@ -298,6 +298,17 @@ export const printImages = async (
     throw new Error("No printer connected. Please connect a printer first.");
   }
 
+  // Use Page Visibility API to prevent tab switching from stopping print
+  let wakeLock: any = null;
+  try {
+    // Request wake lock to keep process active
+    if ('wakeLock' in navigator) {
+      wakeLock = await (navigator as any).wakeLock.request('screen');
+    }
+  } catch (err) {
+    console.log('Wake lock not supported or failed');
+  }
+
   try {
     await connectToPrinter();
     console.log("Printer connected, starting print job...");
@@ -349,8 +360,8 @@ export const printImages = async (
 
       console.log(`Image sent successfully (${height} lines)`);
 
-      // Feed paper and cut (3 line feeds = ~3/4 inch gap)
-      await sendCommand([0x0a, 0x0a, 0x0a], "Feed paper");
+      // Feed paper and cut (2 line feeds = ~1/2 inch gap)
+      await sendCommand([0x0a, 0x0a], "Feed paper");
       await new Promise((resolve) => setTimeout(resolve, 100));
       
       await sendCommand([GS, 0x56, 0x00], "Cut paper");
@@ -370,5 +381,14 @@ export const printImages = async (
   } catch (error) {
     console.error("Print error:", error);
     throw new Error(`Failed to print: ${error instanceof Error ? error.message : "Unknown error"}`);
+  } finally {
+    // Release wake lock
+    if (wakeLock) {
+      try {
+        await wakeLock.release();
+      } catch (err) {
+        console.log('Wake lock release failed');
+      }
+    }
   }
 };

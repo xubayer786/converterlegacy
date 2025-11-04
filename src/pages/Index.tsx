@@ -16,6 +16,7 @@ const Index = () => {
   const [conversionProgress, setConversionProgress] = useState(0);
   const [showPrinterDialog, setShowPrinterDialog] = useState(false);
   const [isPrinterConnected, setIsPrinterConnected] = useState(false);
+  const [pendingPrintImages, setPendingPrintImages] = useState<ConvertedImage[] | null>(null);
 
   const handleFilesSelected = async (files: File[]) => {
     setIsConverting(true);
@@ -48,6 +49,7 @@ const Index = () => {
 
   const handlePrint = async (imagesToPrint: ConvertedImage[]) => {
     if (!isPrinterConnected || !getConnectedDevice()) {
+      setPendingPrintImages(imagesToPrint);
       toast.error("Please connect a printer first");
       setShowPrinterDialog(true);
       return;
@@ -64,6 +66,18 @@ const Index = () => {
     } catch (error) {
       console.error("Print error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to print receipts");
+    }
+  };
+
+  const handlePrinterConnected = () => {
+    setIsPrinterConnected(true);
+    
+    // Auto-print if there was a pending print request
+    if (pendingPrintImages) {
+      setTimeout(() => {
+        handlePrint(pendingPrintImages);
+        setPendingPrintImages(null);
+      }, 100);
     }
   };
 
@@ -177,7 +191,7 @@ const Index = () => {
       <PrinterConnection
         isOpen={showPrinterDialog}
         onClose={() => setShowPrinterDialog(false)}
-        onConnected={() => setIsPrinterConnected(true)}
+        onConnected={handlePrinterConnected}
       />
     </div>
   );
