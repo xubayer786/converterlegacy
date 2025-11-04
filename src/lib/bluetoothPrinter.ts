@@ -181,8 +181,8 @@ const sendCommand = async (command: number[], description?: string) => {
   }
 };
 
-// Convert image to ESC/POS bitmap format - optimized for thermal printers
-const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 576): Promise<number[][]> => {
+// Convert image to ESC/POS bitmap format - maximized for 57mm paper
+const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 512): Promise<number[][]> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -315,9 +315,9 @@ export const printImages = async (
       await sendCommand([ESC, 0x33, 0x00], "Set line spacing");
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Convert image to bitmap with larger width for better text clarity
+      // Convert image to bitmap - maximum width for 57mm paper
       console.log("Converting image to bitmap...");
-      const bitmap = await imageToEscPosBitmap(image.dataUrl, 576);
+      const bitmap = await imageToEscPosBitmap(image.dataUrl, 512);
       const widthBytes = bitmap[0].length;
       const height = bitmap.length;
 
