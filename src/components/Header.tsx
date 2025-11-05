@@ -1,4 +1,4 @@
-import { Printer } from "lucide-react";
+import { Printer, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./ThemeToggle";
 import { toast } from "sonner";
@@ -15,6 +15,13 @@ export const Header = ({ onConnectPrinter, isConnected }: HeaderProps) => {
       return;
     }
     onConnectPrinter();
+  };
+
+  const handleiOSPrint = () => {
+    const projectUrl = import.meta.env.VITE_SUPABASE_URL.replace('/supabase', '');
+    const bprintUrl = `bprint://${projectUrl}/functions/v1/print-receipt?id=123`;
+    window.location.href = bprintUrl;
+    toast.info("Opening iOS Bluetooth Print app...");
   };
 
   return (
@@ -43,6 +50,15 @@ export const Header = ({ onConnectPrinter, isConnected }: HeaderProps) => {
             <Printer className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">{isConnected ? "Printer Connected" : "Connect Printer"}</span>
             <span className="sm:hidden">{isConnected ? "Connected" : "Connect"}</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleiOSPrint}
+            className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4"
+          >
+            <Smartphone className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden lg:inline">iOS Print</span>
           </Button>
           <ThemeToggle />
         </div>
