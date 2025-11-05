@@ -1,198 +1,108 @@
-import { useState } from "react";
-import { Header } from "@/components/Header";
-import { FileUploader } from "@/components/FileUploader";
-import { ImageGrid } from "@/components/ImageGrid";
-import { PrinterConnection } from "@/components/PrinterConnection";
-import { ConvertedImage, convertPdfToJpg } from "@/lib/pdfConverter";
-import { printImages, getConnectedDevice } from "@/lib/bluetoothPrinter";
-import { Progress } from "@/components/ui/progress";
-import { toast } from "sonner";
-import { Loader2, Zap, Image as ImageIcon, Printer } from "lucide-react";
-import heroImage from "@/assets/hero-bg.jpg";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Printer, Info, Smartphone } from "lucide-react";
 
 const Index = () => {
-  const [images, setImages] = useState<ConvertedImage[]>([]);
-  const [isConverting, setIsConverting] = useState(false);
-  const [conversionProgress, setConversionProgress] = useState(0);
-  const [showPrinterDialog, setShowPrinterDialog] = useState(false);
-  const [isPrinterConnected, setIsPrinterConnected] = useState(false);
-  const [pendingPrintImages, setPendingPrintImages] = useState<ConvertedImage[] | null>(null);
+  const projectUrl = import.meta.env.VITE_SUPABASE_URL;
+  const printUrl = `${projectUrl}/functions/v1/print-receipt?id=123`;
+  const bprintUrl = `bprint://${printUrl}`;
 
-  const handleFilesSelected = async (files: File[]) => {
-    setIsConverting(true);
-    setConversionProgress(0);
-    const newImages: ConvertedImage[] = [];
-
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileImages = await convertPdfToJpg(file, 58, (progress) => {
-          const totalProgress =
-            ((i + progress / 100) / files.length) * 100;
-          setConversionProgress(totalProgress);
-        });
-        newImages.push(...fileImages);
-      }
-
-      setImages((prev) => [...prev, ...newImages]);
-      toast.success(
-        `Successfully converted ${files.length} PDF(s) to ${newImages.length} image(s)`
-      );
-    } catch (error) {
-      console.error("Conversion error:", error);
-      toast.error("Failed to convert PDF. Please try again.");
-    } finally {
-      setIsConverting(false);
-      setConversionProgress(0);
-    }
-  };
-
-  const handlePrint = async (imagesToPrint: ConvertedImage[]) => {
-    if (!isPrinterConnected || !getConnectedDevice()) {
-      setPendingPrintImages(imagesToPrint);
-      toast.error("Please connect a printer first");
-      setShowPrinterDialog(true);
-      return;
-    }
-
-    try {
-      const printToast = toast.loading(`Printing ${imagesToPrint.length} receipt(s)...`);
-      
-      await printImages(imagesToPrint, (current, total) => {
-        toast.loading(`Printing ${current}/${total} receipt(s)...`, { id: printToast });
-      });
-
-      toast.success(`Successfully printed ${imagesToPrint.length} receipt(s)!`, { id: printToast });
-    } catch (error) {
-      console.error("Print error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to print receipts");
-    }
-  };
-
-  const handlePrinterConnected = () => {
-    setIsPrinterConnected(true);
-    
-    // Auto-print if there was a pending print request
-    if (pendingPrintImages) {
-      setTimeout(() => {
-        handlePrint(pendingPrintImages);
-        setPendingPrintImages(null);
-      }, 100);
-    }
-  };
-
-  const handleDeleteSelected = (ids: string[]) => {
-    setImages(prev => prev.filter(img => !ids.includes(img.id)));
-  };
-
-  const handleReset = () => {
-    setImages([]);
+  const handlePrintClick = () => {
+    window.location.href = bprintUrl;
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header
-        onConnectPrinter={() => setShowPrinterDialog(true)}
-        isConnected={isPrinterConnected}
-      />
-
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12 space-y-8 sm:space-y-12 max-w-7xl">
-        {/* Hero Section */}
-        {images.length === 0 && !isConverting && (
-          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent" 
-                 style={{ boxShadow: 'var(--shadow-glow)' }} />
-            <div className="glass-strong relative px-6 sm:px-8 lg:px-12 py-12 sm:py-16 lg:py-24">
-              <div className="text-center max-w-4xl mx-auto">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6 sm:mb-8">
-                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                  <span className="text-xs sm:text-sm font-medium text-primary">Powered by AI</span>
-                </div>
-                
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-foreground mb-4 sm:mb-6 tracking-tight leading-tight">
-                  Everything App for your
-                  <span className="block bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                    Receipt Printing
-                  </span>
-                </h1>
-                
-                <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed">
-                  Transform PDF invoices into high-quality JPG receipts with
-                  intelligent cropping and direct thermal printing
-                </p>
-                
-                <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-muted-foreground text-xs sm:text-sm">
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg glass">
-                    <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    <span className="hidden sm:inline">Auto-convert on upload</span>
-                    <span className="sm:hidden">Auto-convert</span>
-                  </div>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg glass">
-                    <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    <span className="hidden sm:inline">Smart border cropping</span>
-                    <span className="sm:hidden">Smart crop</span>
-                  </div>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg glass">
-                    <Printer className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    <span className="hidden sm:inline">Bluetooth thermal printing</span>
-                    <span className="sm:hidden">Bluetooth print</span>
-                  </div>
-                </div>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-accent/10">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+        <div className="max-w-2xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-2">
+              <Smartphone className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium text-primary">iOS Compatible</span>
             </div>
-          </div>
-        )}
-
-        {/* File Uploader */}
-        <FileUploader onFilesSelected={handleFilesSelected} />
-
-        {/* Conversion Progress */}
-        {isConverting && (
-          <div className="max-w-2xl mx-auto space-y-4">
-            <div className="glass-strong rounded-2xl p-6 sm:p-8" style={{ boxShadow: 'var(--shadow-premium)' }}>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-primary mb-4">
-                <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin" />
-                <p className="text-base sm:text-lg font-medium text-center">
-                  Converting PDF to JPG... {Math.round(conversionProgress)}%
-                </p>
-              </div>
-              <Progress value={conversionProgress} className="h-2 sm:h-3" />
-            </div>
-          </div>
-        )}
-
-        {/* Image Grid */}
-        {images.length > 0 && (
-          <div className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
-                Converted Images <span className="text-primary">({images.length})</span>
-              </h2>
-            </div>
-            <ImageGrid 
-              images={images} 
-              onPrint={handlePrint} 
-              onDeleteSelected={handleDeleteSelected}
-              onReset={handleReset}
-            />
-          </div>
-        )}
-
-        {/* Empty State */}
-        {images.length === 0 && !isConverting && (
-          <div className="text-center py-8 sm:py-12 text-muted-foreground">
-            <p className="text-base sm:text-lg">
-              Upload PDF files to get started with conversion
+            
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                iOS Thermal Receipt
+              </span>
+              <br />
+              <span className="text-foreground">Print App</span>
+            </h1>
+            
+            <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+              Print receipts directly from your iPhone using the Bluetooth Print app
             </p>
           </div>
-        )}
-      </main>
 
-      <PrinterConnection
-        isOpen={showPrinterDialog}
-        onClose={() => setShowPrinterDialog(false)}
-        onConnected={handlePrinterConnected}
-      />
+          {/* Info Alert */}
+          <Alert className="border-primary/20 bg-primary/5">
+            <Info className="h-5 w-5 text-primary" />
+            <AlertDescription className="text-sm ml-2">
+              <strong className="font-semibold">Before using:</strong> Enable "Browser Print" inside the Bluetooth Print app settings.
+              <br />
+              <a 
+                href="https://apps.apple.com/us/app/id1599863946" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline mt-1 inline-block"
+              >
+                Download Bluetooth Print App →
+              </a>
+            </AlertDescription>
+          </Alert>
+
+          {/* Print Button */}
+          <div className="glass-strong rounded-2xl p-8 space-y-6 text-center">
+            <Printer className="h-16 w-16 mx-auto text-primary animate-pulse" />
+            
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold">Ready to Print?</h2>
+              <p className="text-muted-foreground">
+                Tap the button below to open Bluetooth Print and print your receipt
+              </p>
+            </div>
+
+            <Button 
+              onClick={handlePrintClick}
+              size="lg"
+              className="w-full sm:w-auto px-8 py-6 text-lg font-semibold"
+            >
+              <Printer className="mr-2 h-5 w-5" />
+              Print Receipt
+            </Button>
+          </div>
+
+          {/* Test Link (for development) */}
+          <div className="text-center text-xs text-muted-foreground space-y-2">
+            <p>Test URL (for development):</p>
+            <code className="block px-4 py-2 bg-muted rounded-lg break-all text-left">
+              {bprintUrl}
+            </code>
+            <a 
+              href={bprintUrl}
+              className="text-primary hover:underline inline-block mt-2"
+            >
+              Test Local Print Link →
+            </a>
+          </div>
+
+          {/* How it Works */}
+          <div className="glass rounded-xl p-6 space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Info className="h-5 w-5 text-primary" />
+              How it Works
+            </h3>
+            <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
+              <li>Install the Bluetooth Print app from the App Store</li>
+              <li>Enable "Browser Print" in the app settings</li>
+              <li>Connect your Bluetooth thermal printer</li>
+              <li>Open this web app in Safari on your iPhone</li>
+              <li>Tap "Print Receipt" to automatically print</li>
+            </ol>
+          </div>
+        </div>
+      </main>
     </div>
   );
 };
