@@ -18,7 +18,7 @@ export const Header = ({ onConnectPrinter, isConnected }: HeaderProps) => {
   };
 
   const handleiOSPrint = () => {
-    const projectUrl = import.meta.env.VITE_SUPABASE_URL.replace('/supabase', '');
+    const projectUrl = import.meta.env.VITE_SUPABASE_URL.replace('/supabase', '').replace('https://', '').replace('http://', '');
     const bprintUrl = `bprintapp://${projectUrl}/functions/v1/print-receipt?id=123`;
     window.location.href = bprintUrl;
     toast.info("Opening iOS Bluetooth Print app...");

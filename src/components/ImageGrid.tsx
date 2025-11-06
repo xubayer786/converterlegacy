@@ -181,12 +181,19 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
         
         // Check if files can be shared
         if (navigator.canShare({ files })) {
-          await navigator.share({
-            files,
-            title: "Legacy Converter Receipts",
-            text: message,
-          });
-          toast.success("Opening WhatsApp with receipts!");
+          try {
+            await navigator.share({
+              files,
+              title: "Legacy Converter Receipts",
+              text: message,
+            });
+            toast.success("Shared successfully!");
+          } catch (shareError: any) {
+            // User cancelled or share failed
+            if (shareError.name !== 'AbortError') {
+              throw shareError;
+            }
+          }
           return;
         }
       }
@@ -409,9 +416,9 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 sm:h-7 sm:w-7"
+                  className="h-7 w-7 sm:h-7 sm:w-7 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30"
                   onClick={() => {
-                    const projectUrl = import.meta.env.VITE_SUPABASE_URL.replace('/supabase', '');
+                    const projectUrl = import.meta.env.VITE_SUPABASE_URL.replace('/supabase', '').replace('https://', '').replace('http://', '');
                     const bprintUrl = `bprintapp://${projectUrl}/functions/v1/print-receipt?id=123`;
                     window.location.href = bprintUrl;
                     toast.info("Opening iOS Bluetooth Print app...");
