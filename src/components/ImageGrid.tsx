@@ -381,38 +381,41 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
               <p className="text-[10px] sm:text-xs font-medium truncate" title={image.filename}>
                 {image.filename}
               </p>
-              <div className="flex items-center gap-0.5 sm:gap-1 justify-center">
+              <div className="flex items-center gap-0.5 sm:gap-1 justify-center flex-wrap">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 sm:h-7 sm:w-7"
+                  className="h-7 w-7 sm:h-7 sm:w-7"
                   onClick={() => openPreview(image)}
                 >
-                  <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <Eye className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 sm:h-7 sm:w-7"
+                  className="h-7 w-7 sm:h-7 sm:w-7"
                   onClick={() => downloadImage(image)}
                 >
-                  <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <Download className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 sm:h-7 sm:w-7"
-                  onClick={() => sendToWhatsApp([image])}
-                >
-                  <MessageCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 sm:h-7 sm:w-7"
+                  className="h-7 w-7 sm:h-7 sm:w-7"
                   onClick={() => onPrint([image])}
                 >
-                  <Printer className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <Printer className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 sm:h-7 sm:w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    onDeleteSelected([image.id]);
+                    toast.success('Image deleted');
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5" />
                 </Button>
               </div>
             </div>
