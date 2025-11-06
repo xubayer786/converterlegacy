@@ -62,12 +62,8 @@ serve(async (req) => {
       }
     ];
 
-    // Wrap the data in an object with "data" key for Bluetooth Print app
-    const response = {
-      data: receiptData
-    };
-
-    return new Response(JSON.stringify(response), {
+    // Return the array directly as expected by Bluetooth Print app
+    return new Response(JSON.stringify(receiptData), {
       headers: {
         ...corsHeaders,
         'Content-Type': 'application/json; charset=utf-8',

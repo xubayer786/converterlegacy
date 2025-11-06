@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Printer, Check, MessageCircle, Eye, X, Trash2, RotateCcw } from "lucide-react";
+import { Download, Printer, Check, MessageCircle, Eye, X, Trash2, RotateCcw, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConvertedImage } from "@/lib/pdfConverter";
 import { ImagePreviewModal } from "./ImagePreviewModal";
@@ -405,6 +405,19 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
                   onClick={() => onPrint([image])}
                 >
                   <Printer className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 sm:h-7 sm:w-7"
+                  onClick={() => {
+                    const projectUrl = import.meta.env.VITE_SUPABASE_URL.replace('/supabase', '');
+                    const bprintUrl = `bprintapp://${projectUrl}/functions/v1/print-receipt?id=123`;
+                    window.location.href = bprintUrl;
+                    toast.info("Opening iOS Bluetooth Print app...");
+                  }}
+                >
+                  <Smartphone className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
