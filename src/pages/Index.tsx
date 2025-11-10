@@ -1,22 +1,26 @@
 import { useState } from "react";
 import { Header } from "@/components/Header";
 import { FileUploader } from "@/components/FileUploader";
+import { DirectImageUploader } from "@/components/DirectImageUploader";
 import { ImageGrid } from "@/components/ImageGrid";
 import { PrinterConnection } from "@/components/PrinterConnection";
 import { ConvertedImage, convertPdfToJpg } from "@/lib/pdfConverter";
 import { printImages, getConnectedDevice } from "@/lib/bluetoothPrinter";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Zap, Image as ImageIcon, Printer } from "lucide-react";
+import { Loader2, Zap, Image as ImageIcon, Printer, FileText } from "lucide-react";
 import heroImage from "@/assets/hero-bg.jpg";
 
 const Index = () => {
   const [images, setImages] = useState<ConvertedImage[]>([]);
+  const [directImages, setDirectImages] = useState<ConvertedImage[]>([]);
   const [isConverting, setIsConverting] = useState(false);
   const [conversionProgress, setConversionProgress] = useState(0);
   const [showPrinterDialog, setShowPrinterDialog] = useState(false);
   const [isPrinterConnected, setIsPrinterConnected] = useState(false);
   const [pendingPrintImages, setPendingPrintImages] = useState<ConvertedImage[] | null>(null);
+  const [activeTab, setActiveTab] = useState("pdf");
 
   const handleFilesSelected = async (files: File[]) => {
     setIsConverting(true);
@@ -81,12 +85,24 @@ const Index = () => {
     }
   };
 
+  const handleDirectImagesSelected = (newImages: ConvertedImage[]) => {
+    setDirectImages((prev) => [...prev, ...newImages]);
+  };
+
   const handleDeleteSelected = (ids: string[]) => {
-    setImages(prev => prev.filter(img => !ids.includes(img.id)));
+    if (activeTab === "pdf") {
+      setImages(prev => prev.filter(img => !ids.includes(img.id)));
+    } else {
+      setDirectImages(prev => prev.filter(img => !ids.includes(img.id)));
+    }
   };
 
   const handleReset = () => {
-    setImages([]);
+    if (activeTab === "pdf") {
+      setImages([]);
+    } else {
+      setDirectImages([]);
+    }
   };
 
   return (
@@ -98,7 +114,7 @@ const Index = () => {
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12 space-y-8 sm:space-y-12 max-w-7xl">
         {/* Hero Section */}
-        {images.length === 0 && !isConverting && (
+        {images.length === 0 && directImages.length === 0 && !isConverting && (
           <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent" 
                  style={{ boxShadow: 'var(--shadow-glow)' }} />
@@ -143,8 +159,29 @@ const Index = () => {
           </div>
         )}
 
-        {/* File Uploader */}
-        <FileUploader onFilesSelected={handleFilesSelected} />
+        {/* Tabs for PDF Conversion and Direct Image Upload */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+            <TabsTrigger value="pdf" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">PDF to Image</span>
+              <span className="sm:hidden">PDF</span>
+            </TabsTrigger>
+            <TabsTrigger value="direct" className="flex items-center gap-2">
+              <ImageIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Direct Print</span>
+              <span className="sm:hidden">Direct</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pdf" className="space-y-8">
+            <FileUploader onFilesSelected={handleFilesSelected} />
+          </TabsContent>
+
+          <TabsContent value="direct" className="space-y-8">
+            <DirectImageUploader onImagesSelected={handleDirectImagesSelected} />
+          </TabsContent>
+        </Tabs>
 
         {/* Conversion Progress */}
         {isConverting && (
@@ -161,8 +198,8 @@ const Index = () => {
           </div>
         )}
 
-        {/* Image Grid */}
-        {images.length > 0 && (
+        {/* Image Grid for PDF Tab */}
+        {activeTab === "pdf" && images.length > 0 && (
           <div className="space-y-4 sm:space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
@@ -178,11 +215,36 @@ const Index = () => {
           </div>
         )}
 
+        {/* Image Grid for Direct Tab */}
+        {activeTab === "direct" && directImages.length > 0 && (
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
+                Images for Printing <span className="text-primary">({directImages.length})</span>
+              </h2>
+            </div>
+            <ImageGrid 
+              images={directImages} 
+              onPrint={handlePrint} 
+              onDeleteSelected={handleDeleteSelected}
+              onReset={handleReset}
+            />
+          </div>
+        )}
+
         {/* Empty State */}
-        {images.length === 0 && !isConverting && (
+        {activeTab === "pdf" && images.length === 0 && !isConverting && (
           <div className="text-center py-8 sm:py-12 text-muted-foreground">
             <p className="text-base sm:text-lg">
               Upload PDF files to get started with conversion
+            </p>
+          </div>
+        )}
+
+        {activeTab === "direct" && directImages.length === 0 && (
+          <div className="text-center py-8 sm:py-12 text-muted-foreground">
+            <p className="text-base sm:text-lg">
+              Upload images directly for enhanced quality printing
             </p>
           </div>
         )}

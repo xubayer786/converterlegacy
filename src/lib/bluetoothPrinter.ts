@@ -181,7 +181,7 @@ const sendCommand = async (command: number[], description?: string) => {
   }
 };
 
-// Convert image to ESC/POS bitmap format - optimized for 57mm paper printable area
+// Convert image to ESC/POS bitmap format - optimized for 57mm paper with enhanced contrast
 const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Promise<number[][]> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -222,15 +222,26 @@ const imageToEscPosBitmap = async (dataUrl: string, maxWidth: number = 384): Pro
 
         console.log(`Processing image: ${width}x${height}px`);
 
-        // Convert to grayscale first
+        // Convert to grayscale with enhanced contrast
         const grayscale: number[] = new Array(width * height);
+        const contrastFactor = 1.5; // Increase contrast
+        const brightnessFactor = -20; // Darken slightly
+        
         for (let i = 0; i < width * height; i++) {
           const idx = i * 4;
-          grayscale[i] = pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114;
+          // Convert to grayscale
+          let gray = pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114;
+          
+          // Apply contrast enhancement
+          gray = ((gray - 128) * contrastFactor) + 128 + brightnessFactor;
+          
+          // Clamp values
+          gray = Math.max(0, Math.min(255, gray));
+          grayscale[i] = gray;
         }
 
-        // Apply Floyd-Steinberg dithering for better text quality
-        const threshold = 200; // Higher threshold to reduce black patterns on white areas
+        // Apply Floyd-Steinberg dithering with adjusted threshold for darker output
+        const threshold = 180; // Lower threshold = darker output
         const dithered = new Uint8Array(width * height);
         
         for (let y = 0; y < height; y++) {
