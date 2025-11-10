@@ -19,9 +19,18 @@ export const Header = ({ onConnectPrinter, isConnected }: HeaderProps) => {
 
   const handleiOSPrint = () => {
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const fullUrl = `${supabaseUrl}/functions/v1/print-receipt?id=123`;
-      const bprintUrl = `bprintapp://print?url=${encodeURIComponent(fullUrl)}`;
+      // Bluetooth Print app expects data passed directly in URL, not fetched from endpoint
+      const receiptData = [
+        { type: 0, content: "Legacy Dhaka Receipt", bold: 1, align: 1, format: 2 },
+        { type: 0, content: "Customer: Mohammad Zubair Walid", bold: 0, align: 0, format: 0 },
+        { type: 0, content: "Item: Premium Cufflinks - ৳1499", bold: 0, align: 0, format: 0 },
+        { type: 0, content: "Delivery: Free", bold: 0, align: 0, format: 0 },
+        { type: 0, content: "Thank you for shopping with us!", bold: 1, align: 1, format: 0 },
+        { type: 3, value: "https://legacydhaka.com/qr/12345", size: 40, align: 1 }
+      ];
+      
+      const jsonData = JSON.stringify(receiptData);
+      const bprintUrl = `bprintapp://print?data=${encodeURIComponent(jsonData)}`;
       window.location.href = bprintUrl;
       toast.info("Opening iOS Bluetooth Print app...");
     } catch (error) {

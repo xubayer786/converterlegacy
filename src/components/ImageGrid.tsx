@@ -422,9 +422,18 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
                   className="h-7 w-7 sm:h-7 sm:w-7 text-green-600 hover:text-green-700 hover:bg-green-100 dark:text-green-500 dark:hover:text-green-400 dark:hover:bg-green-950/40"
                   onClick={() => {
                     try {
-                      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                      const fullUrl = `${supabaseUrl}/functions/v1/print-receipt?id=123`;
-                      const bprintUrl = `bprintapp://print?url=${encodeURIComponent(fullUrl)}`;
+                      // Bluetooth Print app expects data passed directly in URL
+                      const receiptData = [
+                        { type: 0, content: "Legacy Dhaka Receipt", bold: 1, align: 1, format: 2 },
+                        { type: 0, content: "Customer: Mohammad Zubair Walid", bold: 0, align: 0, format: 0 },
+                        { type: 0, content: "Item: Premium Cufflinks - ৳1499", bold: 0, align: 0, format: 0 },
+                        { type: 0, content: "Delivery: Free", bold: 0, align: 0, format: 0 },
+                        { type: 0, content: "Thank you for shopping with us!", bold: 1, align: 1, format: 0 },
+                        { type: 3, value: "https://legacydhaka.com/qr/12345", size: 40, align: 1 }
+                      ];
+                      
+                      const jsonData = JSON.stringify(receiptData);
+                      const bprintUrl = `bprintapp://print?data=${encodeURIComponent(jsonData)}`;
                       window.location.href = bprintUrl;
                       toast.info("Opening iOS Bluetooth Print app...");
                     } catch (error) {
