@@ -58,16 +58,17 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
       return;
     }
 
-    // Create ZIP for multiple files
-    const zip = new JSZip();
+    // Download each image individually with delay
+    toast.info(`Downloading ${selected.length} images...`);
     for (const img of selected) {
-      const base64Data = img.dataUrl.split(",")[1];
-      zip.file(img.filename, base64Data, { base64: true });
+      const link = document.createElement("a");
+      link.href = img.dataUrl;
+      link.download = img.filename;
+      link.click();
+      // Small delay between downloads to avoid browser blocking
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
-
-    const blob = await zip.generateAsync({ type: "blob" });
-    saveAs(blob, "legacy-converter-exports.zip");
-    toast.success(`Downloaded ${selected.length} images as ZIP`);
+    toast.success(`Downloaded ${selected.length} images`);
   };
 
   const downloadAll = async () => {
@@ -76,15 +77,17 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
       return;
     }
 
-    const zip = new JSZip();
+    // Download each image individually with delay
+    toast.info(`Downloading ${images.length} images...`);
     for (const img of images) {
-      const base64Data = img.dataUrl.split(",")[1];
-      zip.file(img.filename, base64Data, { base64: true });
+      const link = document.createElement("a");
+      link.href = img.dataUrl;
+      link.download = img.filename;
+      link.click();
+      // Small delay between downloads to avoid browser blocking
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
-
-    const blob = await zip.generateAsync({ type: "blob" });
-    saveAs(blob, "legacy-converter-all.zip");
-    toast.success(`Downloaded all ${images.length} images as ZIP`);
+    toast.success(`Downloaded all ${images.length} images`);
   };
 
   const printSelected = () => {
@@ -416,12 +419,17 @@ export const ImageGrid = ({ images, onPrint, onDeleteSelected, onReset }: ImageG
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 sm:h-7 sm:w-7 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30"
+                  className="h-7 w-7 sm:h-7 sm:w-7 text-green-600 hover:text-green-700 hover:bg-green-100 dark:text-green-500 dark:hover:text-green-400 dark:hover:bg-green-950/40"
                   onClick={() => {
-                    const projectUrl = import.meta.env.VITE_SUPABASE_URL.replace('/supabase', '').replace('https://', '').replace('http://', '');
-                    const bprintUrl = `bprintapp://${projectUrl}/functions/v1/print-receipt?id=123`;
-                    window.location.href = bprintUrl;
-                    toast.info("Opening iOS Bluetooth Print app...");
+                    try {
+                      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                      const projectId = supabaseUrl.match(/https?:\/\/([^.]+)/)?.[1] || '';
+                      const bprintUrl = `bprintapp://${projectId}.supabase.co/functions/v1/print-receipt?id=123`;
+                      window.location.href = bprintUrl;
+                      toast.info("Opening iOS Bluetooth Print app...");
+                    } catch (error) {
+                      toast.error("Failed to open print app");
+                    }
                   }}
                 >
                   <Smartphone className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5" />

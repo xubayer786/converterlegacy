@@ -18,10 +18,15 @@ export const Header = ({ onConnectPrinter, isConnected }: HeaderProps) => {
   };
 
   const handleiOSPrint = () => {
-    const projectUrl = import.meta.env.VITE_SUPABASE_URL.replace('/supabase', '').replace('https://', '').replace('http://', '');
-    const bprintUrl = `bprintapp://${projectUrl}/functions/v1/print-receipt?id=123`;
-    window.location.href = bprintUrl;
-    toast.info("Opening iOS Bluetooth Print app...");
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const projectId = supabaseUrl.match(/https?:\/\/([^.]+)/)?.[1] || '';
+      const bprintUrl = `bprintapp://${projectId}.supabase.co/functions/v1/print-receipt?id=123`;
+      window.location.href = bprintUrl;
+      toast.info("Opening iOS Bluetooth Print app...");
+    } catch (error) {
+      toast.error("Failed to open print app");
+    }
   };
 
   return (
