@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,12 +13,52 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const receiptId = url.searchParams.get('id') || '123';
+    // Authentication check - require valid JWT token
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.log('No authorization header provided');
+      return new Response(JSON.stringify({ error: 'Unauthorized - No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Create Supabase client with the user's auth context
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     
-    console.log(`Print receipt requested for ID: ${receiptId}`);
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.log('Authentication failed:', authError?.message);
+      return new Response(JSON.stringify({ error: 'Unauthorized - Invalid token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`Authenticated user: ${user.id}`);
+
+    const url = new URL(req.url);
+    const receiptId = url.searchParams.get('id');
+    
+    // Input validation - ensure receiptId is provided and valid format
+    if (!receiptId || !/^[a-zA-Z0-9-_]+$/.test(receiptId)) {
+      console.log(`Invalid receipt ID format: ${receiptId}`);
+      return new Response(JSON.stringify({ error: 'Invalid receipt ID format' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    console.log(`Print receipt requested for ID: ${receiptId} by user: ${user.id}`);
 
     // Return JSON data in the exact format required by Bluetooth Print app
+    // In production, this would fetch real receipt data based on receiptId and verify user authorization
     const receiptData = [
       {
         "type": 0,
