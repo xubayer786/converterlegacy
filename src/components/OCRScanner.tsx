@@ -38,9 +38,8 @@ export const OCRScanner = () => {
     const canvas = new FabricCanvas(canvasRef.current, {
       backgroundColor: "#ffffff",
       selection: true,
+      interactive: true,
     });
-
-    setFabricCanvas(canvas);
 
     // Load background image
     FabricImage.fromURL(currentResult.imageUrl).then((img) => {
@@ -62,7 +61,6 @@ export const OCRScanner = () => {
       });
       
       canvas.backgroundImage = img;
-      canvas.renderAll();
 
       // Add text objects for each detected word
       currentResult.words.forEach((word) => {
@@ -83,6 +81,8 @@ export const OCRScanner = () => {
           backgroundColor: "rgba(255, 255, 255, 0.9)",
           padding: 2,
           editable: true,
+          selectable: true,
+          evented: true,
           lockRotation: true,
           lockScalingY: true,
           hasControls: true,
@@ -97,6 +97,7 @@ export const OCRScanner = () => {
       });
 
       canvas.renderAll();
+      setFabricCanvas(canvas);
       toast.success("Click on any text to edit it directly!");
     });
 
