@@ -1,26 +1,120 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, ScanText, Loader2, Copy, Check, Edit2, Save } from "lucide-react";
+import { Upload, ScanText, Loader2, Download, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 import { createWorker } from "tesseract.js";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Canvas as FabricCanvas, FabricImage, IText } from "fabric";
+
+interface DetectedWord {
+  text: string;
+  bbox: { x0: number; y0: number; x1: number; y1: number };
+}
 
 interface OCRResult {
   id: string;
-  imageUrl: string;
   filename: string;
-  extractedText: string;
-  isEditing: boolean;
+  imageUrl: string;
+  words: DetectedWord[];
 }
 
 export const OCRScanner = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressStatus, setProgressStatus] = useState("");
-  const [ocrResults, setOcrResults] = useState<OCRResult[]>([]);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [currentResult, setCurrentResult] = useState<OCRResult | null>(null);
+  const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Fabric canvas when result is ready
+  useEffect(() => {
+    if (!canvasRef.current || !currentResult) return;
+
+    const canvas = new FabricCanvas(canvasRef.current, {
+      backgroundColor: "#ffffff",
+      selection: true,
+    });
+
+    setFabricCanvas(canvas);
+
+    // Load background image
+    FabricImage.fromURL(currentResult.imageUrl).then((img) => {
+      const imgWidth = img.width || 800;
+      const imgHeight = img.height || 600;
+
+      // Store canvas size
+      setCanvasSize({ width: imgWidth, height: imgHeight });
+
+      // Set canvas dimensions
+      canvas.setDimensions({ width: imgWidth, height: imgHeight });
+
+      // Set image as background
+      img.set({
+        originX: "left",
+        originY: "top",
+        selectable: false,
+        evented: false,
+      });
+      
+      canvas.backgroundImage = img;
+      canvas.renderAll();
+
+      // Add text objects for each detected word
+      currentResult.words.forEach((word) => {
+        if (!word.text.trim()) return;
+
+        const { x0, y0, x1, y1 } = word.bbox;
+        const height = y1 - y0;
+
+        // Calculate font size based on bounding box height
+        const fontSize = Math.max(height * 0.85, 10);
+
+        const textObj = new IText(word.text, {
+          left: x0,
+          top: y0,
+          fontSize: fontSize,
+          fontFamily: "Arial, sans-serif",
+          fill: "#000000",
+          backgroundColor: "rgba(255, 255, 255, 0.9)",
+          padding: 2,
+          editable: true,
+          lockRotation: true,
+          lockScalingY: true,
+          hasControls: true,
+          hasBorders: true,
+          borderColor: "#3b82f6",
+          cornerColor: "#3b82f6",
+          cornerSize: 8,
+          transparentCorners: false,
+        });
+
+        canvas.add(textObj);
+      });
+
+      canvas.renderAll();
+      toast.success("Click on any text to edit it directly!");
+    });
+
+    return () => {
+      canvas.dispose();
+    };
+  }, [currentResult]);
+
+  // Handle zoom
+  useEffect(() => {
+    if (!fabricCanvas) return;
+    fabricCanvas.setZoom(zoom);
+    fabricCanvas.setDimensions({
+      width: canvasSize.width * zoom,
+      height: canvasSize.height * zoom,
+    });
+    fabricCanvas.renderAll();
+  }, [zoom, fabricCanvas, canvasSize]);
 
   const processImageWithOCR = async (file: File): Promise<OCRResult | null> => {
     try {
@@ -44,16 +138,24 @@ export const OCRScanner = () => {
         },
       });
 
-      // Perform OCR
-      const { data: { text } } = await worker.recognize(dataUrl);
+      // Perform OCR with word-level bounding boxes
+      const result = await worker.recognize(dataUrl);
       await worker.terminate();
+
+      // Access words from the result data
+      const recognizedWords = (result.data as any).words || [];
+      
+      // Map words to our interface
+      const words: DetectedWord[] = recognizedWords.map((w: any) => ({
+        text: w.text,
+        bbox: w.bbox,
+      }));
 
       return {
         id: `${Date.now()}-${Math.random()}`,
-        imageUrl: dataUrl,
         filename: file.name,
-        extractedText: text.trim(),
-        isEditing: false,
+        imageUrl: dataUrl,
+        words,
       };
     } catch (error) {
       console.error("OCR processing error:", error);
@@ -61,36 +163,31 @@ export const OCRScanner = () => {
     }
   };
 
-  const processFiles = async (files: File[]) => {
+  const processFile = async (file: File) => {
     setIsProcessing(true);
     setProgress(0);
-    const results: OCRResult[] = [];
+    setCurrentResult(null);
+    setZoom(1);
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-          toast.error(`${file.name} is not a valid image file`);
-          continue;
-        }
-
-        setProgressStatus(`Processing ${file.name} (${i + 1}/${files.length})...`);
-        const result = await processImageWithOCR(file);
-        
-        if (result) {
-          results.push(result);
-        }
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast.error(`${file.name} is not a valid image file`);
+        return;
       }
 
-      if (results.length > 0) {
-        setOcrResults((prev) => [...prev, ...results]);
-        toast.success(`Successfully extracted text from ${results.length} image(s)`);
+      setProgressStatus(`Processing ${file.name}...`);
+      const result = await processImageWithOCR(file);
+
+      if (result) {
+        setCurrentResult(result);
+        toast.success(`Detected ${result.words.length} text elements`);
+      } else {
+        toast.error("Failed to process image");
       }
     } catch (error) {
       console.error("OCR error:", error);
-      toast.error("Failed to process images. Please try again.");
+      toast.error("Failed to process image. Please try again.");
     } finally {
       setIsProcessing(false);
       setProgress(0);
@@ -100,119 +197,133 @@ export const OCRScanner = () => {
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
-      processFiles(acceptedFiles);
+      processFile(acceptedFiles[0]);
     }
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
+      "image/*": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"],
     },
-    multiple: true,
+    multiple: false,
     disabled: isProcessing,
   });
 
-  const handleCopy = async (id: string, text: string) => {
+  const handleSaveAsJpg = () => {
+    if (!fabricCanvas) return;
+
     try {
-      await navigator.clipboard.writeText(text);
-      setCopiedId(id);
-      toast.success("Text copied to clipboard");
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      toast.error("Failed to copy text");
+      // Deselect any active object before export
+      fabricCanvas.discardActiveObject();
+      fabricCanvas.renderAll();
+
+      // Export canvas as data URL at original size
+      const dataUrl = fabricCanvas.toDataURL({
+        format: "jpeg",
+        quality: 0.95,
+        multiplier: 1 / zoom,
+      });
+
+      // Create download link
+      const link = document.createElement("a");
+      link.download = `edited-${currentResult?.filename?.replace(/\.[^/.]+$/, "") || "receipt"}.jpg`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Image saved successfully!");
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error("Failed to save image");
     }
   };
 
-  const handleEdit = (id: string) => {
-    setOcrResults((prev) =>
-      prev.map((result) =>
-        result.id === id ? { ...result, isEditing: true } : result
-      )
-    );
+  const handleReset = () => {
+    setCurrentResult(null);
+    setFabricCanvas(null);
+    setZoom(1);
   };
 
-  const handleSave = (id: string) => {
-    setOcrResults((prev) =>
-      prev.map((result) =>
-        result.id === id ? { ...result, isEditing: false } : result
-      )
-    );
-    toast.success("Changes saved");
+  const handleZoomIn = () => {
+    setZoom((prev) => Math.min(prev + 0.25, 3));
   };
 
-  const handleTextChange = (id: string, newText: string) => {
-    setOcrResults((prev) =>
-      prev.map((result) =>
-        result.id === id ? { ...result, extractedText: newText } : result
-      )
-    );
-  };
-
-  const handleDelete = (id: string) => {
-    setOcrResults((prev) => prev.filter((result) => result.id !== id));
-    toast.success("Result removed");
-  };
-
-  const handleClearAll = () => {
-    setOcrResults([]);
-    toast.success("All results cleared");
+  const handleZoomOut = () => {
+    setZoom((prev) => Math.max(prev - 0.25, 0.5));
   };
 
   return (
     <div className="space-y-8">
-      {/* Upload Area */}
-      <div
-        {...getRootProps()}
-        className={`relative overflow-hidden rounded-2xl sm:rounded-3xl border-2 border-dashed transition-all duration-300 cursor-pointer
-          ${isDragActive 
-            ? 'border-primary bg-primary/10 scale-[1.02]' 
-            : 'border-border hover:border-primary/50 hover:bg-accent/30'
-          }
-          ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
-        `}
-        style={{ boxShadow: isDragActive ? 'var(--shadow-glow)' : 'var(--shadow-elegant)' }}
-      >
-        <input {...getInputProps()} />
-        
-        <div className="glass-strong p-8 sm:p-12 lg:p-16">
-          <div className="flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6">
-            <div className={`relative transition-transform duration-300 ${isDragActive ? 'scale-110' : ''}`}>
-              <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
-              <div className="relative p-4 sm:p-6 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20">
-                {isDragActive ? (
-                  <ScanText className="h-12 w-12 sm:h-16 sm:w-16 text-primary animate-pulse" />
-                ) : (
-                  <Upload className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
-                )}
+      {/* Upload Area - show only when no result */}
+      {!currentResult && !isProcessing && (
+        <div
+          {...getRootProps()}
+          className={`relative overflow-hidden rounded-2xl sm:rounded-3xl border-2 border-dashed transition-all duration-300 cursor-pointer
+            ${
+              isDragActive
+                ? "border-primary bg-primary/10 scale-[1.02]"
+                : "border-border hover:border-primary/50 hover:bg-accent/30"
+            }
+          `}
+          style={{
+            boxShadow: isDragActive
+              ? "var(--shadow-glow)"
+              : "var(--shadow-elegant)",
+          }}
+        >
+          <input {...getInputProps()} />
+
+          <div className="glass-strong p-8 sm:p-12 lg:p-16">
+            <div className="flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6">
+              <div
+                className={`relative transition-transform duration-300 ${
+                  isDragActive ? "scale-110" : ""
+                }`}
+              >
+                <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
+                <div className="relative p-4 sm:p-6 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20">
+                  {isDragActive ? (
+                    <ScanText className="h-12 w-12 sm:h-16 sm:w-16 text-primary animate-pulse" />
+                  ) : (
+                    <Upload className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
+                  )}
+                </div>
               </div>
-            </div>
-            
-            <div className="space-y-2 sm:space-y-3">
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
-                {isDragActive ? "Drop slip here" : "Upload Slip for OCR"}
-              </h3>
-              <p className="text-sm sm:text-base text-muted-foreground max-w-md">
-                {isProcessing 
-                  ? "Processing with OCR..."
-                  : "Drag & drop slip images here, or click to select files"
-                }
-              </p>
-            </div>
-            
-            <div className="flex flex-wrap justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
-              <span className="px-3 py-1.5 rounded-full bg-muted/50 border border-border">JPG</span>
-              <span className="px-3 py-1.5 rounded-full bg-muted/50 border border-border">PNG</span>
-              <span className="px-3 py-1.5 rounded-full bg-muted/50 border border-border">WEBP</span>
+
+              <div className="space-y-2 sm:space-y-3">
+                <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
+                  {isDragActive ? "Drop receipt here" : "Upload Receipt to Edit"}
+                </h3>
+                <p className="text-sm sm:text-base text-muted-foreground max-w-md">
+                  Upload a receipt image to detect and edit text directly on it
+                </p>
+              </div>
+
+              <div className="flex flex-wrap justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                <span className="px-3 py-1.5 rounded-full bg-muted/50 border border-border">
+                  JPG
+                </span>
+                <span className="px-3 py-1.5 rounded-full bg-muted/50 border border-border">
+                  PNG
+                </span>
+                <span className="px-3 py-1.5 rounded-full bg-muted/50 border border-border">
+                  WEBP
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Processing Progress */}
       {isProcessing && (
         <div className="max-w-2xl mx-auto space-y-4">
-          <div className="glass-strong rounded-2xl p-6 sm:p-8" style={{ boxShadow: 'var(--shadow-premium)' }}>
+          <div
+            className="glass-strong rounded-2xl p-6 sm:p-8"
+            style={{ boxShadow: "var(--shadow-premium)" }}
+          >
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-primary mb-4">
               <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin" />
               <p className="text-base sm:text-lg font-medium text-center">
@@ -224,123 +335,67 @@ export const OCRScanner = () => {
         </div>
       )}
 
-      {/* OCR Results */}
-      {ocrResults.length > 0 && (
-        <div className="space-y-4 sm:space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
-              Extracted Text <span className="text-primary">({ocrResults.length})</span>
-            </h2>
-            <Button 
-              variant="outline" 
-              onClick={handleClearAll}
-              className="self-start sm:self-auto"
-            >
-              Clear All
-            </Button>
-          </div>
+      {/* Editor Canvas */}
+      {currentResult && (
+        <div className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 glass-strong rounded-xl">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">
+                Editing: {currentResult.filename}
+              </span>
+            </div>
 
-          <div className="grid gap-6">
-            {ocrResults.map((result) => (
-              <div
-                key={result.id}
-                className="glass-strong rounded-2xl overflow-hidden"
-                style={{ boxShadow: 'var(--shadow-elegant)' }}
-              >
-                <div className="grid md:grid-cols-2 gap-4 p-4 sm:p-6">
-                  {/* Image Preview */}
-                  <div className="relative aspect-auto max-h-80 overflow-hidden rounded-xl border border-border">
-                    <img
-                      src={result.imageUrl}
-                      alt={result.filename}
-                      className="w-full h-full object-contain bg-muted/20"
-                    />
-                    <div className="absolute bottom-2 left-2 right-2">
-                      <span className="inline-block px-2 py-1 text-xs rounded bg-background/80 backdrop-blur-sm border border-border truncate max-w-full">
-                        {result.filename}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Extracted Text */}
-                  <div className="flex flex-col space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-foreground">Extracted Text</h4>
-                      <div className="flex gap-2">
-                        {result.isEditing ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSave(result.id)}
-                            className="gap-1"
-                          >
-                            <Save className="h-4 w-4" />
-                            <span className="hidden sm:inline">Save</span>
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(result.id)}
-                            className="gap-1"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                            <span className="hidden sm:inline">Edit</span>
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCopy(result.id, result.extractedText)}
-                          className="gap-1"
-                        >
-                          {copiedId === result.id ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                          <span className="hidden sm:inline">Copy</span>
-                        </Button>
-                      </div>
-                    </div>
-
-                    {result.isEditing ? (
-                      <Textarea
-                        value={result.extractedText}
-                        onChange={(e) => handleTextChange(result.id, e.target.value)}
-                        className="flex-1 min-h-[200px] resize-none font-mono text-sm"
-                        placeholder="No text detected..."
-                      />
-                    ) : (
-                      <div className="flex-1 min-h-[200px] p-3 rounded-lg bg-muted/30 border border-border overflow-auto">
-                        <pre className="whitespace-pre-wrap font-mono text-sm text-foreground">
-                          {result.extractedText || "No text detected"}
-                        </pre>
-                      </div>
-                    )}
-
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(result.id)}
-                      className="self-start"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 border border-border rounded-lg p-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleZoomOut}
+                  disabled={zoom <= 0.5}
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="px-2 text-sm font-medium min-w-[50px] text-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleZoomIn}
+                  disabled={zoom >= 3}
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Empty State */}
-      {ocrResults.length === 0 && !isProcessing && (
-        <div className="text-center py-8 sm:py-12 text-muted-foreground">
-          <p className="text-base sm:text-lg">
-            Upload slip images to extract and edit text
-          </p>
+              <Button size="sm" variant="outline" onClick={handleReset}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                New Image
+              </Button>
+
+              <Button size="sm" onClick={handleSaveAsJpg}>
+                <Download className="h-4 w-4 mr-2" />
+                Save as JPG
+              </Button>
+            </div>
+          </div>
+
+          {/* Canvas Container */}
+          <div
+            ref={containerRef}
+            className="overflow-auto rounded-2xl border border-border bg-muted/20 p-4"
+            style={{ maxHeight: "70vh" }}
+          >
+            <div className="inline-block">
+              <canvas ref={canvasRef} />
+            </div>
+          </div>
+
+          {/* Instructions */}
+          <div className="text-center text-sm text-muted-foreground">
+            <p>Click on any text to edit it directly. Drag to reposition. Save when done.</p>
+          </div>
         </div>
       )}
     </div>
