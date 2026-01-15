@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Header } from "@/components/Header";
 import { FileUploader } from "@/components/FileUploader";
 import { DirectImageUploader } from "@/components/DirectImageUploader";
+import { OCRScanner } from "@/components/OCRScanner";
 import { ImageGrid } from "@/components/ImageGrid";
 import { PrinterConnection } from "@/components/PrinterConnection";
 import { ConvertedImage, convertPdfToJpg } from "@/lib/pdfConverter";
@@ -9,7 +10,7 @@ import { printImages, getConnectedDevice } from "@/lib/bluetoothPrinter";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Zap, Image as ImageIcon, Printer, FileText } from "lucide-react";
+import { Loader2, Zap, Image as ImageIcon, Printer, FileText, ScanText } from "lucide-react";
 import heroImage from "@/assets/hero-bg.jpg";
 
 const Index = () => {
@@ -159,9 +160,9 @@ const Index = () => {
           </div>
         )}
 
-        {/* Tabs for PDF Conversion and Direct Image Upload */}
+        {/* Tabs for PDF Conversion, Direct Image Upload, and OCR */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-8">
             <TabsTrigger value="pdf" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">PDF to Image</span>
@@ -172,6 +173,11 @@ const Index = () => {
               <span className="hidden sm:inline">Direct Print</span>
               <span className="sm:hidden">Direct</span>
             </TabsTrigger>
+            <TabsTrigger value="ocr" className="flex items-center gap-2">
+              <ScanText className="h-4 w-4" />
+              <span className="hidden sm:inline">OCR Scanner</span>
+              <span className="sm:hidden">OCR</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pdf" className="space-y-8">
@@ -180,6 +186,10 @@ const Index = () => {
 
           <TabsContent value="direct" className="space-y-8">
             <DirectImageUploader onImagesSelected={handleDirectImagesSelected} />
+          </TabsContent>
+
+          <TabsContent value="ocr" className="space-y-8">
+            <OCRScanner />
           </TabsContent>
         </Tabs>
 
